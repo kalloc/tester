@@ -1,0 +1,4 @@
+#centos
+rpm -Uvh http://download.fedora.redhat.com/pub/epel/5/i386/epel-release-5-3.noarch.rpm
+yum install libevent libevent-devel mc zlib.i386 openssl-devel.i386 c-ares.i386 strace lua valgrind nmap  gdb
+
