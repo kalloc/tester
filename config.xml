@@ -1,0 +1,25 @@
+<tester 
+    id="1"   
+    timeout="20"  
+    maxread="500000"
+    path="lua/"  
+/>
+<server
+    timeout="4"   
+    periodReport="5" 
+    periodReportError="1"  
+    periodRetrieve="60" 
+    host="85.12.37.30" 
+    port="7132" 
+    type="storage"
+    key="It's a fracking tester's dAta" 
+/>
+<server1
+    timeout="2"   
+    periodReport="300" 
+    type="data"
+    periodReportError="300"   
+    host="89.188.104.198" 
+    port="7131" 
+    key="It's a fracking tester's dAta" 
+/>
