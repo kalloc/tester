@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="62">
+  <logicalFolder name="root" displayName="root" projectFiles="true">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>include.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <logicalFolder name="f1" displayName="3dpart" projectFiles="true">
+        <logicalFolder name="aes" displayName="aes" projectFiles="true">
+          <itemPath>aes/aes.c</itemPath>
+          <itemPath>aes/aes.h</itemPath>
+        </logicalFolder>
+        <logicalFolder name="curve25519-donna"
+                       displayName="curve25519-donna"
+                       projectFiles="true">
+          <itemPath>curve25519-donna/curve25519-donna.c</itemPath>
+        </logicalFolder>
+        <itemPath>yxml.c</itemPath>
+        <itemPath>yxml.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f2" displayName="test&apos;s" projectFiles="true">
+        <itemPath>test_icmp.c</itemPath>
+        <itemPath>test_lookup.c</itemPath>
+        <itemPath>test_lua.c</itemPath>
+        <itemPath>test_tcp.c</itemPath>
+      </logicalFolder>
+      <itemPath>client.c</itemPath>
+      <itemPath>config.xml</itemPath>
+      <itemPath>process.c</itemPath>
+      <itemPath>report.c</itemPath>
+      <itemPath>statistics.c</itemPath>
+      <itemPath>tester.c</itemPath>
+      <itemPath>tools.c</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>aes</Elem>
+    <Elem>curve25519-donna</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <compilerSet>GNU|GNU</compilerSet>
+        <platform>2</platform>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>2</developmentMode>
+          <commandlineTool>gcc</commandlineTool>
+          <incDir>
+            <pElem>/usr/include/lua5.1</pElem>
+            <pElem>/opt/tester/include</pElem>
+          </incDir>
+          <warningLevel>2</warningLevel>
+        </cTool>
+        <ccTool>
+          <commandlineTool>gcc</commandlineTool>
+        </ccTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerLibLibItem>z</linkerLibLibItem>
+            <linkerLibLibItem>ssl</linkerLibLibItem>
+            <linkerLibStdlibItem>Mathematics</linkerLibStdlibItem>
+            <linkerLibLibItem>cares</linkerLibLibItem>
+            <linkerLibFileItem>/opt/tester/lib/liblua.a</linkerLibFileItem>
+            <linkerLibFileItem>/opt/tester/lib/libevent.a</linkerLibFileItem>
+            <linkerLibStdlibItem>PosixThreads</linkerLibStdlibItem>
+            <linkerLibLibItem>rt</linkerLibLibItem>
+            <linkerLibFileItem>/opt/tester/lib/libevent_pthreads.a</linkerLibFileItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+    </conf>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <compilerSet>GNU|GNU</compilerSet>
+        <platform>2</platform>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <linkerTool>
+          <linkerLibItems>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+    </conf>
+  </confs>
+</configurationDescriptor>
