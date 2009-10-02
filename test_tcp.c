@@ -1,5 +1,3 @@
-#include <event2/event.h>
-
 #include "include.h"
 
 static struct event_base *base = 0L;

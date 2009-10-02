@@ -1,7 +1,3 @@
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-#include <event2/event_compat.h>
-
 #include "include.h"
 #include "aes/aes.h"
 static pthread_mutex_t count_lock;

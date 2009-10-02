@@ -1,10 +1,8 @@
 #include "include.h"
 #include <dirent.h>
-#include <event2/event.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <iconv.h>
-#include <event2/bufferevent.h>
 //static struct event_base *base = 0L;
 
 
