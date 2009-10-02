@@ -48,7 +48,6 @@
 
 #include <pthread.h>
 
-
 /*
  *
  *		misc define
@@ -96,10 +95,6 @@
 
 //отправлять одни пакетом
 #define ONEPACKET
-
-//тест для тестирования тестеров
-//#define TESTER
-//#define TEST_SMTP
 
 #ifndef DEBUG
 #define DEBUG
@@ -504,14 +499,6 @@ void initLUATester();
 #define getLua(name) searchLua(name,TRUE)
 #define createLua(name) searchLua(name,FALSE)
 void timerLuaTask(int, short, void *);
-//#define TEST_ALL 1
-//#define TESTER 1
-//#define CHECKPERIOD 0
-//#define COUNT   1000
-//#define TEST_FTP
-
-
-
 //Lookup
 void timerDNSTask(int, short, void *);
 void lookupInit();
