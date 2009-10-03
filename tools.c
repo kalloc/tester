@@ -189,6 +189,8 @@ unsigned int openConfiguration(char *filename) {
                         config.maxInput = atoi(xml_attr->value);
                     } else if (!strcmp(xml_attr->name, "path")) {
                         config.lua.path = strdup((const char *) xml_attr->value);
+                    } else if (!strcmp(xml_attr->name, "log")) {
+                        config.log = strdup((const char *) xml_attr->value);
                     }
                 }
             }
@@ -289,20 +291,54 @@ int setb(int fd) {
     return 0;
 }
 
-void loger(const char *fmt, ...) {
-    static char buf[4096];
-    static int len;
+void loger(char *codefile,char *codefunction,int level, const char *fmt, ...) {
+
+    /*
+        static pthread_mutex_t *mutex = NULL;
+        if (!mutex) {
+            mutex = calloc(1, sizeof (*mutex));
+            pthread_mutex_init(mutex, NULL);
+        }
+      pthread_mutex_lock(mutex);
+     */
+
+    int len;
+    char *buf, *file, *date;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    buf = getNulledMemory(4096);
+    if (fp == 0) {
+        struct tm *tm;
+        time_t result;
+        result = time(NULL);
+        file = getNulledMemory(4096);
+        tm = localtime(&result);
+        snprintf(file, 4096, config.log, 1900 + tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min);
+        fp = fopen(file, "a");
+        free(file);
+    }
+    len = snprintf(buf, 4096, "%d [%s%s%s%s] %s%s%s%s",
+            tv.tv_sec,
+            level == LOG_DEBUG ? "DEBUG" : "",
+            level == LOG_NOTICE ? "NOTICE" : "",
+            level == LOG_INFO ? "INFO" : "",
+            level == LOG_WARN ? "WARN" : "",
+            codefile?codefile:"",
+            codefunction?":":"",
+            codefunction?codefunction:"",
+            codefunction?"() ":""
+            );
+    fwrite(buf, 1, len, fp);
     va_list ap;
     va_start(ap, fmt);
-    len = vsnprintf(buf, 4096, fmt, ap);
+    len = vsnprintf(buf, 4094, fmt, ap);
     buf[len] = '\n';
-    buf[len + 1] = 0;
-    if (fp == 0) {
-        fp = fopen("/var/log/authorizer.log", "w");
-    }
-    fwrite(buf, 1, len, fp);
+    buf[len+ 1] = 0;
+    fwrite(buf, 1, len+1, fp);
     fflush(fp);
     va_end(ap);
+    free(buf);
+    //    pthread_mutex_unlock(mutex);
 }
 
 char * ConnectedIpString(Server *pServer) {
@@ -349,6 +385,7 @@ char * getActionText(int code) {
             );
     return buf;
 }
+
 
 char * getErrorText(int code) {
     switch (code) {
@@ -405,6 +442,21 @@ char * getModuleText(int code) {
             return "UNKNOW";
     }
 }
+char * getRoleText(int code) {
+    switch (code) {
+        case DNS_SUBTASK:
+            return "DNS_SUBTASK";
+        case DNS_RESOLV:
+            return "DNS_RESOLV";
+        case DNS_TASK:
+            return "DNS_TASK";
+        case DNS_GETNS:
+            return "DNS_GETNS";
+        default:
+            return "UNKNOW";
+    }
+}
+
 
 char * getStatusText(int code) {
     static char buf[1024];
@@ -433,9 +485,9 @@ closeConnection(Server *pServer, short needDelete) {
     }
 #ifdef DEBUG
     if (poll->type == MODE_SERVER) {
-        printf(cGREEN"CLOSE CONNECTION:"cEND"\t"cBLUE"%s:%d\n\n"cEND, pServer->host,pServer->port);
+        debug("MODE_SERVER %s:%d", pServer->host, pServer->port);
     } else {
-        printf(cGREEN"CLOSE CONNECTION:"cEND"\t"cBLUE"%s/%s\n\n"cEND, getStatusText(poll->status), getActionText(poll->type));
+        debug("%s/%s", getStatusText(poll->status), getActionText(poll->type));
     }
 #endif
     poll->status = STATE_DISCONNECTED;
