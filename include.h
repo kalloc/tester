@@ -159,6 +159,22 @@ enum MODULE_TYPE {
     MODULE_READ_OBJECTS_CFG = 1000 // Тестер запрашивает свои рабочие данные
 };
 
+enum {
+    LOG_DEBUG,
+    LOG_WARN,
+    LOG_INFO,
+    LOG_NOTICE
+};
+
+
+#ifdef DEBUG
+#define debug(...) loger(__FILE__,__FUNCTION__,LOG_DEBUG, __VA_ARGS__);
+#define warn(...) loger(__FILE__,__FUNCTION__,LOG_WARN, __VA_ARGS__);
+#define notice(...) loger(__FILE__,__FUNCTION__,LOG_NOTICE, __VA_ARGS__);
+#endif
+
+#define info(...) loger(NULL,NULL,LOG_INFO, __VA_ARGS__);
+
 typedef struct {
     char *ptr;
     u_int len;
@@ -342,7 +358,7 @@ typedef struct st_config {
         int period;
         char *path;
     } lua;
-
+    char *log;
     Server *pServerDC;
     size_t maxInput;
 
@@ -401,12 +417,11 @@ struct Task {
 void openSession(Server *, short);
 void InitConnectTo(Server *);
 void readFromServer(int, short, void *);
-unsigned int openConfiguration(char *);
 
 //Tools
+unsigned int openConfiguration(char *);
 void base64_encode(char *, int, char *, int *);
 int base64_decode(const unsigned char *, unsigned char *, int *);
-
 void stackDump(lua_State *, int);
 int timeDiffMS(struct timeval, struct timeval);
 int timeDiffUS(struct timeval, struct timeval);
@@ -443,7 +458,6 @@ void RequestSend(Server *, u32, struct evbuffer *);
 //Tester
 void initTester();
 
-
 //Report
 
 struct ReportListEntry {
@@ -452,7 +466,6 @@ struct ReportListEntry {
     void *Data;
     LIST_ENTRY(ReportListEntry) entries; /* List. */
 } *ReportEntryPtr, *ReportEntryPtrForDC;
-
 void SendReportError(Server *);
 void SendReport(Server *);
 u32 countReportError(Server *);
@@ -462,21 +475,18 @@ void addTCPReport(struct Task *);
 void addReport(struct Task *);
 void initReport();
 void addLuaReport(struct Task *);
+
 //Statistics
 void incStat(int, int);
-
-
 
 //Task
 void addTCPTask(Server *, struct _Tester_Cfg_Record *, u32);
 void addICMPTask(Server *, struct _Tester_Cfg_Record *, u32);
 void addLuaTask(Server *, struct _Tester_Cfg_Record *, u32, char *);
 void addDNSTask(Server *, struct _Tester_Cfg_Record *, u32, char *);
-
 void deleteTask(struct Task *);
 #define getTask(id) searchTask(id,TRUE)
 #define createTask(id) searchTask(id,FALSE)
-
 
 //Tester_ICMP
 void OnDisposeICMPTask(struct Task *);
@@ -499,6 +509,7 @@ void initLUATester();
 #define getLua(name) searchLua(name,TRUE)
 #define createLua(name) searchLua(name,FALSE)
 void timerLuaTask(int, short, void *);
-//Lookup
+
+//Tester_DNS
 void timerDNSTask(int, short, void *);
 void lookupInit();
