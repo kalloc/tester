@@ -33,27 +33,14 @@ void openSession(Server *pServer, short action) {
     struct evbuffer *buffer = bufferevent_get_input(poll->bev);
     u_char *data = EVBUFFER_DATA(buffer);
     u_int len = evbuffer_get_length(buffer);
-
-#ifdef DEBUG
-    printf(cGREEN"EVENT "cEND"SESSION  -> %s[%d] / %s[%d]\n", getActionText(action), action, getStatusText(poll->status), poll->status);
-#endif
+    debug("%s:%d -> %s %s", pServer->host, pServer->port, getActionText(action), getStatusText(poll->status));
     if (poll->status == STATE_QUIT) {
         closeConnection(pServer, FALSE);
         return;
     }
 
     if (action & EV_READ) {
-#ifdef HEXPRINT
-        hexPrint((char *) data, len);
-#endif
         genSharedKey(pServer, (u_char *) data);
-#ifdef DEBUG
-#ifdef HEXPRINT
-        printf("\t"cGREEN"LocalPublic:"cEND"\t\t"cBLUE"%s"cEND"\n", bin2hex(pServer->key.public, 32));
-        printf("\t"cGREEN"RemotePublic:"cEND"\t\t"cBLUE"%s"cEND"\n", bin2hex((u_char *) data, 32));
-        printf("\t"cGREEN"Shared:"cEND"\t\t\t"cBLUE"%s"cEND"\n", bin2hex(pServer->key.shared, 32));
-#endif
-#endif
         poll->status = STATE_SESSION;
         bufferevent_enable(poll->bev, EV_WRITE);
 
@@ -95,10 +82,7 @@ void InitConnectTo(Server *pServer) {
     sa.sin_port = htons(pServer->port);
     bzero(&sa.sin_zero, 8);
 
-#ifdef DEBUG
-    gettimeofday(&tv, NULL);
-    printf(cGREEN"Try connect to: %s:%d [time: %d]\n"cEND, pServer->host, pServer->port, tv.tv_sec);
-#endif
+    debug("%s:%d", pServer->host, pServer->port);
     pServer->poll->status = STATE_CONNECTING;
     pServer->poll->type = MODE_SERVER;
 
@@ -119,20 +103,22 @@ void InitConnectTo(Server *pServer) {
 
 void timerRetrieveTask(int fd, short action, void *arg) {
     Server *pServer = (Server *) arg;
-
+    static int countRetrieve = 0;
     timerclear(&tv);
     tv.tv_sec = pServer->periodRetrieve;
     evtimer_add(&pServer->evConfig, &tv);
 
-#ifdef DEBUG
-    gettimeofday(&tv, NULL);
-    printf(cGREEN"EVENT"cEND" timerRetrieveTask() -> %s : %s : %d : [time %d]\n", getActionText(action), getStatusText(pServer->poll->status), (int) pServer->periodRetrieve, (int) tv.tv_sec);
-#endif
+    debug("%s:%d,%d -> %s  %s", pServer->host, pServer->port, (int) pServer->periodRetrieve, getActionText(action), getStatusText(pServer->poll->status));
     pServer->flagRetriveConfig = 1;
     if (pServer->poll->status == STATE_DISCONNECTED) {
         InitConnectTo(pServer);
     } else if (pServer->poll->status == STATE_CONNECTED) {
         LoadTask(pServer);
+    }
+    countRetrieve++;
+    if (countRetrieve > 100) {
+        countRetrieve=0;
+        restart_handler(0);
     }
 
 }
@@ -145,11 +131,13 @@ void timerSendReportError(int fd, short action, void *arg) {
     evtimer_add(&pServer->evReportError, &tv);
 
     if (countReportError(pServer) > 0) {
-#ifdef DEBUG
-        gettimeofday(&tv, NULL);
-        printf(cGREEN"EVENT"cEND" timerSendReportError() -> Count Errors %d : %s : %s [time: %d]\n", countReportError(pServer), getStatusText(pServer->poll->status), pServer->host, tv.tv_sec);
-#endif
+        debug("%s:%d -> Errors %d, %s %s  [period - %d]", pServer->host, pServer->port,
+                countReportError(pServer),
+                getActionText(action), getStatusText(pServer->poll->status),
+                (int) pServer->periodReportError);
+
         pServer->flagSendReportError = 1;
+
         if (pServer->poll->status == STATE_DISCONNECTED) {
             InitConnectTo(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
@@ -169,11 +157,13 @@ void timerSendReport(int fd, short action, void *arg) {
     evtimer_add(&pServer->evReport, &tv);
 
     if (countReport(pServer) > 0) {
-#ifdef DEBUG
-        gettimeofday(&tv, NULL);
-        printf(cGREEN"EVENT"cEND" timerSendReport() -> Count %d : %s : %s [time: %d]\n", countReport(pServer), getStatusText(pServer->poll->status), pServer->host, tv.tv_sec);
-#endif
+        debug("%s:%d -> Report %d, %s %s  [period - %d]", pServer->host, pServer->port,
+                countReport(pServer),
+                getActionText(action), getStatusText(pServer->poll->status),
+                (int) pServer->periodReport);
+
         pServer->flagSendReport = 1;
+
         if (pServer->poll->status == STATE_DISCONNECTED) {
             InitConnectTo(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
