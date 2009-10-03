@@ -20,16 +20,12 @@ void onErrorFromServer(Server *pServer, int code) {
             closeConnection(pServer, FALSE);
             break;
     }
-#ifdef DEBUG
-    printf(cRED"PROCESS FAIL"cEND" -> %s[%d] host [%s:%d]\n", getErrorText(code), code, pServer->host, pServer->port);
-#endif
+    debug("%s[%d] host [%s:%d]", getErrorText(code), code, pServer->host, pServer->port);
 }
 
 #define Size_Request_hdr sizeof(pReq->hdr)
 #define Size_Request_sizes sizeof(pReq->sizes)
 #define Size_Request (sizeof(struct Request)-sizeof(char *))
-
-#define HEXPRINT 
 
 void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     struct Poll *poll = pServer->poll;
@@ -44,18 +40,13 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
         evbuffer_add_buffer(evReq, evSend);
     }
 
-#ifdef DEBUG
+    debug("len:%d to %s:%d 0x%08x", evbuffer_get_length(evReq), pServer->host, pServer->port, pServer->poll->bev);
 
-    printf(cGREEN"try to send Request len:%d to %s:%d 0x%08x\n"cEND, evbuffer_get_length(evReq), pServer->host, pServer->port, pServer->poll->bev);
-#endif
     pReq = (struct Request *) (EVBUFFER_DATA(evReq));
     pReq->sizes.UncmprSize = evbuffer_get_length(evReq) - Size_Request_sizes;
     pReq->hdr.TesterId = config.testerid;
     pReq->hdr.ReqType = type;
-#ifdef DEBUG
-    printf(cBLUE"\treq->hdr.TesterId=%d\n"cEND, pReq->hdr.TesterId);
-    printf(cBLUE"\treq->hdr.ReqType=%d\n"cEND, pReq->hdr.ReqType);
-#endif
+
 
 #ifdef COMPRESS
     if (pReq->sizes.UncmprSize > 200) {
@@ -76,23 +67,23 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
 
 #endif
     pReq->sizes.crc = crc32(0xffffffff, (const Bytef *) pReq, evbuffer_get_length(evReq));
-#ifdef DEBUG
-    printf(cBLUE"\treq->sizes.CmprSize=%d\n"cEND, pReq->sizes.CmprSize);
-    printf(cBLUE"\treq->sizes.UncmprSize=%d\n"cEND, pReq->sizes.UncmprSize);
-    printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
-#ifdef HEXPRINT
-    hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
-#endif
-#endif
+    /*
+    #ifdef DEBUG
+        printf(cBLUE"\treq->sizes.CmprSize=%d\n"cEND, pReq->sizes.CmprSize);
+        printf(cBLUE"\treq->sizes.UncmprSize=%d\n"cEND, pReq->sizes.UncmprSize);
+        printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
+    #ifdef HEXPRINT
+        hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
+    #endif
+    #endif
+     */
 
     bufferevent_write_buffer(poll->bev, evReq);
     evbuffer_free(evReq);
 }
 
 void LoadTask(Server *pServer) {
-#ifdef DEBUG
-    printf(cGREEN"CRON"cEND" -> getConfigFromServer\n");
-#endif
+    debug("from %s:%d",pServer->host,pServer->port);
 
     if (!evBuffer) {
         evBuffer = evbuffer_new();
@@ -151,9 +142,6 @@ void onLoadTask(Server *pServer) {
     pServer->timeOfLastUpdate = tv.tv_sec;
 
     config.TimeStabilization = tv.tv_sec - Cfg_AddData->ServerTime;
-#ifdef DEBUG
-    printf("tv.tv_sec - Cfg_AddData->ServerTime (%d - %d) = %d\n", tv.tv_sec, Cfg_AddData->ServerTime, config.TimeStabilization);
-#endif
     int RecordsLen = (pReq->sizes.UncmprSize - sizeof (* Cfg_AddData) - Size_Request);
     int RecordOffset;
 
@@ -215,12 +203,6 @@ void onEventFromServer(Server *pServer, short action) {
     struct evbuffer *buffer = EVBUFFER_INPUT(poll->bev);
     u_char *data = EVBUFFER_DATA(buffer);
     u_int len = EVBUFFER_LENGTH(buffer);
-#ifdef DEBUG
-    printf(cGREEN"PROCESS"cEND" -> %s[%d] / %s[%d]\n", getActionText(action), action, getStatusText(poll->status), poll->status);
-#ifdef HEXPRINT
-    hexPrint((char *) data, len);
-#endif
-#endif
 
     if (len <= 4) {
         if (data[0] == '-')
