@@ -141,20 +141,19 @@ int luaL_InitEventNet(lua_State * L) {
 
 void LoadLuaFromDisk() {
 
+    char filenameWithPath[4096];
     DIR *pDIR = opendir(config.lua.path);
     struct dirent *pdirent = 0;
     struct struct_LuaModule *lua;
 
     struct stat st;
     int ModType;
-    chdir(config.lua.path);
     while ((pdirent = readdir(pDIR)) > 0) {
         ModType = getLuaModuleId(pdirent->d_name);
         if (ModType > 0) {
+            snprintf(filenameWithPath, 4096, "%s/%s", config.lua.path, pdirent->d_name);
             stat(pdirent->d_name, &st);
-#ifdef DEBUG
-            printf("ooh! module %s — found in %s\n", getModuleText(ModType), pdirent->d_name);
-#endif
+            info("module %s — found in %s", getModuleText(ModType), pdirent->d_name);
             lua = createLua(ModType);
 
 
@@ -169,7 +168,7 @@ void LoadLuaFromDisk() {
                 luaopen_table(lua->state);
                 lua_pop(lua->state, 6);
                 luaL_InitEventNet(lua->state);
-                luaL_loadfile(lua->state, pdirent->d_name);
+                luaL_loadfile(lua->state, filenameWithPath);
                 lua_pcall(lua->state, 0, 0, 0);
                 //lua_getglobal(lua->L, "module");
                 //lua_getfield(lua->L, 1, "type");
@@ -194,6 +193,9 @@ void LoadLuaFromDisk() {
 
 int getLuaModuleId(const char* filename) {
     size_t len;
+    char filenameWithPath[4096];
+    snprintf(filenameWithPath, 4096, "%s/%s", config.lua.path, filename);
+
     int ModType = 0;
     len = strlen(filename);
     if (
@@ -206,7 +208,7 @@ int getLuaModuleId(const char* filename) {
         luaopen_base(L);
         //убеждаемся что это файл  точно по формату module_*.lua ;)
         lua_pop(L, 2);
-        luaL_loadfile(L, filename);
+        luaL_loadfile(L, filenameWithPath);
         lua_pcall(L, 0, 0, 0);
         lua_getglobal(L, "module");
         if (lua_istable(L, 1)) {
@@ -229,17 +231,14 @@ void closeLuaConnection(struct Task *task) {
     gettimeofday(&tv, NULL);
     poll->DelayMS = timeDiffMS(tv, poll->CheckDt);
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" CLOSE -> id %d %p, Module %s for %s [%s:%d] [ms: %d] %s\n",
+    debug("id %d, Module %s for %s [%s:%d] [ms: %d] %s",
             task->LObjId,
-            task,
             getModuleText(task->Record.ModType),
             task->Record.HostName,
             ipString(task->Record.IP),
             task->Record.Port,
             poll->DelayMS,
             task->isSub ? "is sub" : "");
-#endif
 
     /*
         } else if (task->code != STATE_DISCONNECTED) {
@@ -323,14 +322,8 @@ void closeLuaConnection(struct Task *task) {
 int LuaTaskResume(struct Task *task, int num) {
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
     int ret = lua_status(luaTask->state);
-#ifdef DEBUG
-    //    printf(cBLUE"LUA "cEND"RESUME[%d] luaTask=%p, LObjId=%d %s\n", ret, task, task->LObjId, task->isSub ? "is sub" : "");
-#endif
     if (ret != 1) return ret;
     ret = lua_resume(luaTask->state, num);
-#ifdef DEBUG
-    //    printf(cBLUE"LUA "cEND"RESUME[%d] luaTask=%p, LObjId=%d %s\n", ret, task, task->LObjId, task->isSub ? "is sub" : "");
-#endif
 
     if (ret == 0) {
         if (task and task->isSub) {
@@ -356,9 +349,7 @@ void OnErrorLuaTask(struct bufferevent *bev, short what, void *arg) {
         return;
     }
 
-#ifdef DEBUG
-    printf(cGREEN"EVENT"cEND" ERROR %s -> id %d, timeout is %d, State %s, Module %s for %s [%s:%d] %s\n", getActionText(what), task->LObjId, task->Record.TimeOut, getStatusText(task->code), getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
-#endif
+    debug("%s -> id %d, timeout is %d, State %s, Module %s for %s [%s:%d] %s", getActionText(what), task->LObjId, task->Record.TimeOut, getStatusText(task->code), getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
 
     int valopt = 0;
     socklen_t lon = 0;
@@ -374,18 +365,11 @@ void OnErrorLuaTask(struct bufferevent *bev, short what, void *arg) {
 
 void OnWriteLuaTask(struct bufferevent *bev, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cGREEN"EVENT"cEND" WRITE [%s]-> id %d, Module %s for %s [%s:%d] %s \n", getStatusText(task->code), task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
-#endif
+    debug("%s-> id %d, Module %s for %s [%s:%d] %s", getStatusText(task->code), task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
     if (task->code == STATE_WRITE) {
         task->code = STATE_CONNECTED;
-#ifdef DEBUG
-        printf("Resume ->  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
         LuaTaskResume(task, 0);
-#ifdef DEBUG
-        printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
+
     }
 
 }
@@ -398,18 +382,14 @@ void OnReadLuaTask(struct bufferevent *bev, void *arg) {
     u_char *data = EVBUFFER_DATA(buffer);
     u_int len = EVBUFFER_LENGTH(buffer);
 
-#ifdef DEBUG
-    printf(cGREEN"EVENT"cEND" READ %d byte -> id %d, Module %s for %s [%s:%d] %s \n", len, task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
-#endif
-
-    //hexPrint(data,len);
+    debug("%d byte -> id %d, Module %s for %s [%s:%d] %s", len, task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
     if (len > 0 and len != task->readedSize and config.maxInput > len) {
         task->code = STATE_READ;
 
         task->readedSize = len;
 
         timerclear(&tv);
-        #define MIN_TTL 100
+#define MIN_TTL 100
         if (task->Record.TimeOut > MIN_TTL) {
             tv.tv_usec = MIN_TTL * 1000;
         } else {
@@ -429,13 +409,7 @@ void OnReadLuaTask(struct bufferevent *bev, void *arg) {
         }
 
         evbuffer_drain(buffer, len);
-#ifdef DEBUG
-        printf("Resume ->  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
         LuaTaskResume(task, 1);
-#ifdef DEBUG
-        printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
     }
 }
 
@@ -445,14 +419,12 @@ void OnErrorLuaSubTask(struct bufferevent *bev, short what, void *arg) {
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
 
 
-#ifdef DEBUG
-    printf(cGREEN"EVENT "cEND" SUB onERROR %s -> id %d,State %s, Module %s for %s [%s:%d] [ms: %d] %s\n",
+    debug("%s -> id %d,State %s, Module %s for %s [%s:%d] [ms: %d]",
             getActionText(what),
             task->LObjId,
             getStatusText(task->code),
             getModuleText(task->Record.ModType),
-            task->Record.HostName, ipString(task->Record.IP), task->Record.Port, poll->DelayMS, task->isSub ? "is sub" : "");
-#endif
+            task->Record.HostName, ipString(task->Record.IP), task->Record.Port, poll->DelayMS);
 
     if ((what & BEV_EVENT_CONNECTED)) {
 
@@ -469,30 +441,16 @@ void OnErrorLuaSubTask(struct bufferevent *bev, short what, void *arg) {
     if (len > 0) {
         lua_pushlstring(luaTask->state, (char *) data, len);
         task->readedSize = 0;
-#ifdef DEBUG
-        printf("Resume ->  %s:%d\n", __func__, __LINE__);
-#endif
         LuaTaskResume(task, 1);
-#ifdef DEBUG
-        printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
     }
 }
 
 void OnWriteLuaSubTask(struct bufferevent *bev, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cGREEN"EVENT "cEND" SUB onWRITE[%s] -> id %d, Module %s for %s [%s:%d] %s \n", getStatusText(task->code), task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
-#endif
+    debug("%s -> id %d, Module %s for %s [%s:%d]", getStatusText(task->code), task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
     if (task->code == STATE_WRITE) {
         task->code = STATE_CONNECTED;
-#ifdef DEBUG
-        printf("Resume ->  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
         LuaTaskResume(task, 1);
-#ifdef DEBUG
-        printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
     }
 }
 
@@ -500,14 +458,7 @@ struct Task ** pushLuaNet(lua_State *L, struct Task * task) {
     struct Task **ptr = (struct Task **) lua_newuserdata(L, sizeof (*task));
     *ptr = task;
     luaL_getmetatable(L, LuaNet);
-
-
     lua_setmetatable(L, 2);
-
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" pushLuaNet = %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
-
     return ptr;
 }
 
@@ -539,9 +490,6 @@ struct Task * checkLuaNet(lua_State *L, int index) {
     if (ptr == NULL) luaL_typerror(L, index, LuaNet);
     task = *ptr;
 
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" checkLuaNet = %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
 
     if (!task)
         luaL_error(L, "null Image");
@@ -735,15 +683,10 @@ static int LuaNetConnect(lua_State * L) {
 
 
     if (lua_gettop(L) == 1) {
-#ifdef DEBUG
-
-        printf(cBLUE"LUA"cEND" CONNECT %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+        debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
         pushLuaNet(L, task);
     } else if (lua_gettop(L) == 3) {
-#ifdef DEBUG
-        printf(cBLUE"LUA"cEND" SUB CONNECT %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+        debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
         if (lua_type(L, 2) != LUA_TSTRING) {
             lua_pop(L, 2);
             return 0;
@@ -798,9 +741,7 @@ static int LuaNetConnect(lua_State * L) {
 
         lua_pop(L, 2);
         pushLuaNet(L, subtask);
-#ifdef DEBUG
-        printf("task->LobjId is %d and task->end is %d, task - %p\n", subtask->LObjId, subtask->isEnd, subtask);
-#endif
+        debug("task->LobjId is %d and task->end is %d, task - %p", subtask->LObjId, subtask->isEnd, subtask);
         return lua_yield(L, 1);
     }
 
@@ -818,15 +759,13 @@ void timerLuaNetRead(int fd, short action, void *arg) {
     u_int len = EVBUFFER_LENGTH(buffer);
     bufferevent_disable(poll->bev, EV_READ);
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" timerLuaNetRead -> id %d, Module %s for %s [%s:%d] %s\n",
+    debug("id %d, Module %s for %s [%s:%d] %s",
             task->Record.LObjId,
             getModuleText(task->Record.ModType),
             task->Record.HostName,
             ipString(task->Record.IP),
             task->Record.Port,
             task->isSub ? "is sub" : "");
-#endif
 
     task->isRead = 0;
     if (task->readedSize == 0) {
@@ -839,14 +778,7 @@ void timerLuaNetRead(int fd, short action, void *arg) {
     task->code = STATE_CONNECTED;
 
     evbuffer_drain(buffer, len);
-
-#ifdef DEBUG
-    printf("Resume ->  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
     LuaTaskResume(task, 1);
-#ifdef DEBUG
-    printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
 }
 
 static int LuaNetRead(lua_State * L) {
@@ -855,9 +787,7 @@ static int LuaNetRead(lua_State * L) {
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
 
 
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" READ %d %p %p %s\n", task->LObjId, task, L, task->isSub ? "is sub" : "");
-#endif
+    debug("%d %p %p %s", task->LObjId, task, L, task->isSub ? "is sub" : "");
 
     task->code = STATE_READ;
 
@@ -893,9 +823,7 @@ static int LuaNetWrite(lua_State * L) {
 
     const char *ptr = lua_tolstring(L, 2, (size_t *) & len);
     task->code = STATE_WRITE;
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" WRITE %d bytes %p %d %p %p %s\n", len, task, task->LObjId, task, L, task->isSub ? "is sub" : "");
-#endif
+    debug("%d bytes %p %d %p %p %s", len, task, task->LObjId, task, L, task->isSub ? "is sub" : "");
 
 
     bufferevent_write(poll->bev, ptr, len);
@@ -906,9 +834,7 @@ static int LuaNetWrite(lua_State * L) {
 
 void timerLuaNetSleep(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cBLUE"EVENT "cEND" timerNetSleep() id:%d\n", task->LObjId);
-#endif
+    debug("id:%d", task->LObjId);
 
     ((struct struct_LuaTask *) task->ptr)->issleep = 0;
     LuaTaskResume(task, 0);
@@ -920,10 +846,6 @@ static int LuaNetSleep(lua_State * L) {
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
     timerclear(&tv);
     tv.tv_usec = lua_tonumber(L, 2);
-
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" SLEEP %d second %d %p %p %s\n", (int) tv.tv_sec, task->LObjId, task, L, task->isSub ? "is sub" : "");
-#endif
     luaTask->issleep = 1;
     event_assign(&luaTask->sleep, luaTask->luaModule->base, -1, 0, timerLuaNetSleep, task);
     evtimer_add(&luaTask->sleep, &tv);
@@ -932,33 +854,26 @@ static int LuaNetSleep(lua_State * L) {
 
 static int LuaNetError(lua_State * L) {
     struct Task *task = checkLuaNet(L, 1);
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" ERROR %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+    debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
     if (!task->isSub) task->code = STATE_ERROR;
     return 0;
 }
 
 static int LuaNetDone(lua_State * L) {
     struct Task *task = checkLuaNet(L, 1);
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" DONE %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+    debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
     if (!task->isSub) task->code = STATE_DONE;
     return 0;
 }
 
 static int LuaNetClose(lua_State * L) {
     struct Task *task = checkLuaNet(L, 1);
-#ifdef DEBUG
-    printf(cBLUE"LUA"cEND" CLOSE %d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+    debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
     if (!task or !task->isSub) return 0;
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" CLOSE -> id %d %p, Module %s for %s [%s:%d] [ms: %d] %s\n",
+    debug("\tReally-> id %d %p, Module %s for %s [%s:%d] [ms: %d] %s",
             task->LObjId,
             task,
             getModuleText(task->Record.ModType),
@@ -967,7 +882,6 @@ static int LuaNetClose(lua_State * L) {
             task->Record.Port,
             poll->DelayMS,
             task->isSub ? "is sub" : "");
-#endif
 
     if (luaTask and luaTask->issleep) {
         luaTask->issleep = 0;
@@ -1020,9 +934,7 @@ void openLuaConnection(struct Task * task) {
     task->Record.Port = 12341;
 #endif
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" CONNECT TO %s:%d, LObjId = %d %s\n", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "");
-#endif
+    debug("%s:%d, LObjId = %d %s", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "");
 
     gettimeofday(&poll->CheckDt, NULL);
 
@@ -1057,9 +969,7 @@ void openLuaConnection(struct Task * task) {
 void RunLuaTask(struct Task * task) {
     struct struct_LuaTask *luaTask;
     char *ptr;
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" RUN id:%d %s\n", task->LObjId, task->isSub ? "is sub" : "");
-#endif
+    debug("id:%d %s", task->LObjId, task->isSub ? "is sub" : "");
 
 
     luaTask = (struct struct_LuaTask *) task->ptr;
@@ -1165,18 +1075,11 @@ void RunLuaTask(struct Task * task) {
     lua_pushinteger(luaTask->state, task->LObjId);
     lua_settable(luaTask->state, 2);
 
-
-#ifdef DEBUG
-    printf("Resume ->  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
     lua_resume(luaTask->state, 1);
-#ifdef DEBUG
-    printf("Resume <-  %s:%d\n", __FUNCTION__, __LINE__);
-#endif
-    if (cycles > 10) {
+    if (cycles > 100) {
         int memuse = lua_gc(luaModule->state, LUA_GCCOUNT, 0);
         lua_gc(luaModule->state, LUA_GCCOLLECT, 0);
-        printf("Memory used before gc = %d (%d), cycles %d\n", memuse, memuse - lua_gc(luaModule->state, LUA_GCCOUNT, 0), cycles);
+        debug("Memory used before gc = %d (%d), cycles %d", memuse, memuse - lua_gc(luaModule->state, LUA_GCCOUNT, 0), cycles);
         cycles = 0;
     }
     cycles++;
@@ -1187,9 +1090,7 @@ void RunLuaTask(struct Task * task) {
 
 void timerLuaTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cBLUE"EVENT "cEND" timerLuaTask(%d) id:%d %s\n", action, task->LObjId, getStatusText(task->code));
-#endif
+    debug("%d id:%d %s", action, task->LObjId, getStatusText(task->code));
     if (task->code) {
         closeLuaConnection(task);
     }
