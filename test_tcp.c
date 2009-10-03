@@ -15,19 +15,12 @@ void closeTCPConnection(struct Task *task) {
 
     poll->DelayMS = timeDiffMS(tv, poll->CheckDt);
 
-#ifndef TESTER
     if (task->callback) {
         task->callback(task);
     }
-#else
-    incStat(task->Record.ModType, task->code);
-#endif
 
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" CLOSE -> id %d, Module %s for %s [%s:%d] [ms: %d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, poll->DelayMS);
-#endif
-
+    debug("%s(%s):%d -> id %d, Module %s [ms: %d]", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType), poll->DelayMS);
     task->code = STATE_DISCONNECTED;
     shutdown(poll->fd, 1);
     close(poll->fd);
@@ -46,9 +39,7 @@ void OnErrorTCPTask(struct bufferevent *bev, short what, void *arg) {
     int valopt = 0;
     socklen_t lon = 0;
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" ERROR -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType));
 
     getsockopt(poll->fd, SOL_SOCKET, SO_ERROR, (void *) & valopt, &lon);
     poll->CheckOk = 0;
@@ -65,18 +56,13 @@ void OnWriteTCPTask(struct bufferevent *bev, void *arg) {
     task->code = STATE_DONE;
     poll->CheckOk = 1;
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" WRITE -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
-
+    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType));
     closeTCPConnection(task);
 }
 
 void OnReadTCPTask(struct bufferevent *bev, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" READ -> id %d, Module %s for %s [%s:%d] \n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType));
 
 }
 
@@ -109,10 +95,7 @@ void openTCPConnection(struct Task *task) {
     }
 
     bufferevent_set_timeouts(poll->bev, &tv, &tv);
-
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" CONNECT -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType));
 
     task->code = STATE_CONNECTING;
 };
@@ -121,9 +104,7 @@ void timerTCPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
     //если состояние подключения не изменилось, то значит что какого либо ответа не было получено
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" SCHEDULE -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port,task->Record.LObjId, getModuleText(task->Record.ModType));
 
     if (task->isEnd == TRUE) {
         closeTCPConnection(task);
