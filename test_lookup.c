@@ -385,9 +385,7 @@ char buf[BUFLEN];
 
 void OnEventDNSTask(int fd, short event, void *arg) {
     struct Task *task = (struct Task *) arg;
-#ifdef DEBUG
-    printf(cBLUE"EVENT "cEND" OnEventDNSTask() id:%d %s %s\n", task->LObjId, getActionText(event), task->Record.HostName);
-#endif
+    debug("event:%s, LobjId:%d, Hostname %s", getActionText(event),task->LObjId,  task->Record.HostName);
     if (event & EV_READ) {
         ares_process_fd(task->resolv->channel, fd, ARES_SOCKET_BAD);
     }
@@ -401,9 +399,7 @@ static void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned 
     u32 ip;
     unsigned int qdcount, ancount, nscount, arcount, i;
     const unsigned char *aptr;
-#ifdef DEBUG
-    printf(cBLUE"EVENT "cEND" DNSTaskCallBack() id:%d %s\n", task->LObjId, task->Record.HostName);
-#endif
+    debug("LobjId:%d, Hostname %s", task->LObjId,  task->Record.HostName);
     if (status != ARES_SUCCESS) {
         return;
     }
@@ -451,10 +447,7 @@ void timerDNSTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
     if (!task->resolv) return;
     makeDNSTask(task);
-#ifdef DEBUG
-    printf(cBLUE"EVENT "cEND" timerDNSTask() id:%d %s %s\n", task->LObjId,
-            getStatusText(task->code), task->Record.HostName);
-#endif
+    debug("LobjId:%d, Role %s, Hostname %s", task->LObjId,getRoleText(task->resolv->role),  task->Record.HostName);
     if (task->Record.ResolvePeriod) {
         tv.tv_sec = task->Record.ResolvePeriod;
         tv.tv_usec = 0;
