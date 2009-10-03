@@ -71,9 +71,13 @@ void deleteTask(struct Task *task) {
 
 #define modifyCallbackTimer(callback) \
         if (Record->NextCheckDt % Record->CheckPeriod != task->timeRemainder) {\
+            debug("\tRemainter Modify, Old value - %d,New - %d,New Timer - %d",\
+                task->timeRemainder,\
+                Record->NextCheckDt % Record->CheckPeriod,\
+                Record->CheckPeriod - (task->timeRemainder-(Record->NextCheckDt % Record->CheckPeriod)));\
             evtimer_del(&task->time_ev);\
             timerclear(&tv); \
-            tv.tv_sec = Record->CheckPeriod - ((Record->NextCheckDt % Record->CheckPeriod) - task->timeRemainder); \
+            tv.tv_sec = Record->CheckPeriod - (task->timeRemainder-(Record->NextCheckDt % Record->CheckPeriod)); \
             evtimer_set(&task->time_ev, callback, task); \
             evtimer_add(&task->time_ev, &tv); \
             task->timeRemainder = Record->NextCheckDt % Record->CheckPeriod; \
@@ -94,9 +98,8 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, u32 firstSt
         removeifChangeModType();
         modifyCallbackTimer(timerTCPTask);
     } else {
-#ifdef DEBUG
-        printf(cGREEN"TASK TCP"cEND" NEW -> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
+
+        debug("id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addTCPReport;
@@ -114,9 +117,7 @@ void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, u32 firstS
         removeifChangeModType();
         modifyCallbackTimer(timerICMPTask);
     } else {
-#ifdef DEBUG
-        printf(cGREEN"TASK ICMP"cEND" NEW -> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
+        debug("id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addICMPReport;
@@ -134,17 +135,13 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, u32 firstSt
         removeifChangeModType();
         modifyCallbackTimer(timerLuaTask);
 
-#ifdef DEBUG
-        printf(cGREEN"TASK"cEND" REPLACE LUA -> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
+        debug("REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, ((struct struct_LuaTask *) task->ptr)->ptr);
+
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(((struct struct_LuaTask *) task->ptr)->ptr);
             ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
         }
     } else {
-#ifdef DEBUG
-        printf(cGREEN"TASK"cEND" NEW LUA-> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->ptr = getNulledMemory(sizeof (struct struct_LuaTask));
@@ -152,13 +149,11 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, u32 firstSt
         task->callback = addTCPReport;
         addCallbackTimer(timerLuaTask);
         addSubTaskResolv(DNS_RESOLV);
+        debug("NEW LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, ((struct struct_LuaTask *) task->ptr)->ptr);
     }
     memcpy(&((task)->Record), Record, sizeof (*Record));
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
-
-    //    inet_aton("213.248.62.4", (struct in_addr *) & ((task)->Record.IP));
     memcpy(((struct struct_LuaTask *) task->ptr)->ptr, data, Record->ConfigLen);
-    printf("%s  %s  %s %d\n", getModuleText(Record->ModType), Record->HostName, ((struct struct_LuaTask *) task->ptr)->ptr, Record->TimeOut);
 
 };
 
@@ -168,30 +163,25 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, u32 firstSt
     if (task->Record.LObjId) {
         removeifChangeModType();
         modifyCallbackTimer(timerDNSTask);
-#ifdef DEBUG
-        printf(cGREEN"TASK"cEND" REPLACE LUA -> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
+        debug("REPLACE DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, task->ptr);
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(((struct struct_LuaTask *) task->ptr)->ptr);
             ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
         }
     } else {
-#ifdef DEBUG
-        printf(cGREEN"TASK"cEND" NEW LUA-> id %d, Module %s for %s [%s:%d]\n", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
-#endif
+
+
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct DNSTask));
         task->ptr = getNulledMemory(Record->ConfigLen + 1);
         task->callback = addTCPReport;
         addCallbackTimer(timerDNSTask);
         addSubTaskResolv(DNS_GETNS);
+        debug("NEW DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, task->ptr);
     }
     memcpy(&((task)->Record), Record, sizeof (*Record));
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
-
-    //    inet_aton("213.248.62.4", (struct in_addr *) & ((task)->Record.IP));
     memcpy(task->ptr, data, Record->ConfigLen);
-    printf("%s  %s  %s %d\n", getModuleText(Record->ModType), Record->HostName, task->ptr, Record->TimeOut);
 
 };
 
