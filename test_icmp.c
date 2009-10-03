@@ -18,19 +18,6 @@ struct IcmpListEntry {
 struct timeval tv;
 
 void OnReadICMPTask(int fd, short event, void *arg) {
-#ifdef DEBUG
-    /*
-        if (!LIST_EMPTY(&IcmpReadHead)) {
-            int count = 0;
-
-            LIST_FOREACH(IcmpEntryPtr, &IcmpReadHead, entries) {
-                count++;
-            }
-            printf(cGREEN"TASK"cEND" READ -> Wait for read LobjId->%d, fd: %d\n", count, IcmpPoll.read_fd);
-
-        }
-     */
-#endif
 
     if (LIST_EMPTY(&IcmpReadHead) and IcmpPoll.read_fd != 0) {
         event_del(&IcmpPoll.read_ev);
@@ -90,17 +77,11 @@ void OnReadICMPTask(int fd, short event, void *arg) {
 
             task->code = state;
 
-
-#ifdef DEBUG
-            printf(cGREEN"TASK"cEND" READ -> id %d, Module %s for %s [%s:%d] [Icmp_Code: %d, Icmp_Type: %d, ms: %d]\n", IcmpEntryPtr->task->Record.LObjId, getModuleText(IcmpEntryPtr->task->Record.ModType), IcmpEntryPtr->task->Record.HostName, ipString(IcmpEntryPtr->task->Record.IP), IcmpEntryPtr->task->Record.Port, icmp_poll->ProblemICMP_Code, icmp_poll->ProblemICMP_Type, icmp_poll->DelayMS);
-#endif
-#ifndef TESTER
+            debug("id %d, Module %s for %s [%s:%d] [Icmp_Code: %d, Icmp_Type: %d, ms: %d]", IcmpEntryPtr->task->Record.LObjId, getModuleText(IcmpEntryPtr->task->Record.ModType), IcmpEntryPtr->task->Record.HostName, ipString(IcmpEntryPtr->task->Record.IP), IcmpEntryPtr->task->Record.Port, icmp_poll->ProblemICMP_Code, icmp_poll->ProblemICMP_Type, icmp_poll->DelayMS);
             if (task->callback) {
                 task->callback(task);
             }
-#else
-            incStat(task->Record.ModType, task->code);
-#endif
+
             LIST_REMOVE(IcmpEntryPtr, entries);
             free(IcmpEntryPtr);
             if (task->isEnd) {
@@ -133,9 +114,7 @@ void OnWriteICMPTask(int fd, short action, void *arg) {
     }
 
     LIST_FOREACH(IcmpEntryPtr, &IcmpWriteHead, entries) {
-#ifdef DEBUG
-        printf(cGREEN"TASK"cEND" WRITE -> id %d, Module %s for %s [%s:%d]\n", IcmpEntryPtr->task->Record.LObjId, getModuleText(IcmpEntryPtr->task->Record.ModType), IcmpEntryPtr->task->Record.HostName, ipString(IcmpEntryPtr->task->Record.IP), IcmpEntryPtr->task->Record.Port);
-#endif
+        debug("id %d, Module %s for %s [%s:%d]", IcmpEntryPtr->task->Record.LObjId, getModuleText(IcmpEntryPtr->task->Record.ModType), IcmpEntryPtr->task->Record.HostName, ipString(IcmpEntryPtr->task->Record.IP), IcmpEntryPtr->task->Record.Port);
 
         bzero(&packet, 12);
         *(u32 *) (&packet[8]) = IcmpEntryPtr->task->LObjId;
@@ -170,9 +149,7 @@ void OnWriteICMPTask(int fd, short action, void *arg) {
 void timerTimeoutICMPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" TIMEOUT -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("id %d, Module %s for %s [%s:%d]", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
     //если состояние подключения не изменилось, то значит что какого либо ответа не было получено
     task->code = STATE_TIMEOUT;
 
@@ -191,13 +168,9 @@ void timerTimeoutICMPTask(int fd, short action, void *arg) {
 
 
     //добавляем репорт о ошибке
-#ifndef TESTER
     if (task->callback) {
         task->callback(task);
     }
-#else
-    incStat(task->Record.ModType, task->code);
-#endif
 
     if (task->isEnd == TRUE) {
         OnDisposeICMPTask(task);
@@ -210,9 +183,7 @@ void timerTimeoutICMPTask(int fd, short action, void *arg) {
 void timerICMPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
-#ifdef DEBUG
-    printf(cGREEN"TASK"cEND" SCHEDULE -> id %d, Module %s for %s [%s:%d]\n", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-#endif
+    debug("id %d, Module %s for %s [%s:%d]", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
     if (task->isEnd == TRUE) {
         OnDisposeICMPTask(task);
         return;
@@ -255,9 +226,7 @@ void timerICMPTask(int fd, short action, void *arg) {
 }
 
 void OnDisposeICMPTask(struct Task * task) {
-#ifdef DEBUG
-    printf(cGREEN"ICMP DELETE"cEND" "cBLUE"%d - %s %d"cEND"\n", task->LObjId, ipString(task->Record.IP), STATE_CONNECTED);
-#endif
+    debug("%d - %s %d", task->LObjId, ipString(task->Record.IP), STATE_CONNECTED);
     evtimer_del(&task->time_ev);
     evtimer_del(&task->read);
     deleteTask(task);
