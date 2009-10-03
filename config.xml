@@ -3,6 +3,7 @@
     timeout="20"  
     maxread="500000"
     path="lua/"  
+    log="log/%d.%02d.%02d_%02d.%02d.log"
 />
 <server
     timeout="4"   
