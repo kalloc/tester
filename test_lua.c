@@ -640,11 +640,12 @@ static int LuaNetBase64Decode(lua_State * L) {
 static int LuaNetIconv(lua_State * L) {
     char *fromStringPtr, *fromString, *fromCharset, *toString, *toStringPtr;
     iconv_t Iconv;
-    size_t lenIn = 40000, lenOut, i;
+    size_t lenIn = 40000, lenOut;
+    int i;
     fromCharset = (char *) lua_tostring(L, -1);
     fromStringPtr = fromString = (char *) lua_tolstring(L, -2, (size_t*) & lenIn);
 
-    lenOut = lenIn << 2;
+    lenOut = lenIn * 4;
     toStringPtr = toString = getNulledMemory(lenOut);
     Iconv = iconv_open("UTF-8//IGNORE", fromCharset);
     i = iconv(Iconv,
@@ -652,7 +653,6 @@ static int LuaNetIconv(lua_State * L) {
             &toStringPtr, &lenOut
             );
     iconv_close(Iconv);
-
     if (i>-1) {
         lua_pushlstring(L, toString, lenOut);
     } else {
@@ -1090,23 +1090,32 @@ void RunLuaTask(struct Task * task) {
 
 void timerLuaTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
-    debug("%d id:%d %s", action, task->LObjId, getStatusText(task->code));
-    if (task->code) {
-        closeLuaConnection(task);
-    }
+    debug("id:%d %s", task->LObjId, getStatusText(task->code));
+    if (!task->Record.IP || task->isEnd == TRUE) return;
+    if (task->code) closeLuaConnection(task);
 
-    if (task->isEnd != TRUE and task->Record.IP) {
-        timerclear(&tv);
+    timerclear(&tv);
 
-        if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
-            tv.tv_sec = task->Record.CheckPeriod;
+    if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
+        if (task->newTimer > 0) {
+            debug("Remainder before activate id:%d %d", task->LObjId, task->Record.NextCheckDt);
+//            task->Record.NextCheckDt=task->Record.NextCheckDt-task->Record.CheckPeriod+task->newTimer;
+            tv.tv_sec = task->newTimer;
+            task->newTimer = 0;
+            task->isShiftActive = 1;
+            debug("Remainder activate id:%d %d -> %d", task->LObjId, tv.tv_sec, task->Record.NextCheckDt);
         } else {
-            tv.tv_sec = 60;
-            task->isEnd = TRUE;
+            task->isShiftActive = 0;
+            tv.tv_sec = task->Record.CheckPeriod;
         }
-        evtimer_add(&task->time_ev, &tv);
-        openLuaConnection(task);
+    } else {
+        task->isShiftActive = 0;
+        tv.tv_sec = 60;
+        task->isEnd = TRUE;
     }
+//    task->timeShift = task->Record.NextCheckDt % task->Record.CheckPeriod;
+    evtimer_add(&task->time_ev, &tv);
+    openLuaConnection(task);
 }
 
 void initLUATester() {

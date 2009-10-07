@@ -1,10 +1,27 @@
+<!-- 
+    maxread - максимальный допустимый размер для считывания
+    path - путь к луа скриптам 
+    minrecheck - минимальное смещение, если меньше него то смещение будет установленно в смещение + период
+    minperiod - минимальный период
+-->
+
 <tester 
     id="1"   
     timeout="20"  
     maxread="500000"
     path="lua/"  
     log="log/%d.%02d.%02d_%02d.%02d.log"
+    minrecheck="10"
+    minperiod="60"
 />
+
+<!-- 
+    periodReport - период отправки отчетов
+    periodReportError - период отправки отчетов ошибок
+    periodRetrieve - период получения новых задач
+    type - data: ему отправляются отчеты только о тех задачах таски на которые он присылал 
+-->
+
 <server
     timeout="4"   
     periodReport="5" 
@@ -12,13 +29,16 @@
     periodRetrieve="60" 
     host="85.12.37.30" 
     port="7132" 
-    type="storage"
+    type="data"
     key="It's a fracking tester's dAta" 
 />
+<!-- 
+    type - storage: ему отправляются все отчеты, и таски от него не принимаются 
+-->
 <server1
     timeout="2"   
     periodReport="300" 
-    type="data"
+    type="storage"
     periodReportError="300"   
     host="89.188.104.198" 
     port="7131" 

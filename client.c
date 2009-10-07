@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
             break;
         } else {
 
-            if (pServer->isSC) {
+            if (pServer->isDC) {
                 evtimer_set(&pServer->evConfig, timerRetrieveTask, pServer);
                 evtimer_add(&pServer->evConfig, &tv);
             }

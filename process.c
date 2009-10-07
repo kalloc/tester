@@ -69,9 +69,9 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     pReq->sizes.crc = crc32(0xffffffff, (const Bytef *) pReq, evbuffer_get_length(evReq));
     /*
     #ifdef DEBUG
-        printf(cBLUE"\treq->sizes.CmprSize=%d\n"cEND, pReq->sizes.CmprSize);
-        printf(cBLUE"\treq->sizes.UncmprSize=%d\n"cEND, pReq->sizes.UncmprSize);
-        printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
+        printf(cBLUE"\treq->sizes.CmprSize=%d"cEND, pReq->sizes.CmprSize);
+        printf(cBLUE"\treq->sizes.UncmprSize=%d"cEND, pReq->sizes.UncmprSize);
+        printf(cBLUE"\treq->sizes.crc=0x%08x"cEND, pReq->sizes.crc);
     #ifdef HEXPRINT
         hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
     #endif
@@ -83,7 +83,7 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
 }
 
 void LoadTask(Server *pServer) {
-    debug("from %s:%d",pServer->host,pServer->port);
+    debug("from %s:%d", pServer->host, pServer->port);
 
     if (!evBuffer) {
         evBuffer = evbuffer_new();
@@ -139,13 +139,13 @@ void onLoadTask(Server *pServer) {
 
     Cfg_AddData = (struct _Tester_Cfg_AddData *) & pReq->Data;
     gettimeofday(&tv, NULL);
+    config.TimeStabilization = tv.tv_sec - Cfg_AddData->ServerTime;
     pServer->timeOfLastUpdate = tv.tv_sec;
 
-    config.TimeStabilization = tv.tv_sec - Cfg_AddData->ServerTime;
+    debug("remote time %d, new offset %d", Cfg_AddData->ServerTime, config.TimeStabilization);
     int RecordsLen = (pReq->sizes.UncmprSize - sizeof (* Cfg_AddData) - Size_Request);
     int RecordOffset;
-
-    gettimeofday(&tv, NULL);
+    int newShift;
     for (
             RecordOffset = sizeof (* Cfg_AddData);
             RecordOffset < RecordsLen;
@@ -153,40 +153,41 @@ void onLoadTask(Server *pServer) {
             ) {
         //        Cfg_Record = (struct _Tester_Cfg_Record *) (&pReq->Data + RecordOffset);
         Cfg_Record = (void *) & pReq->Data + RecordOffset;
-#ifdef DEBUG
-        /*
-                printf("\tid объекта тестирования = %x\n", Cfg_Record->LObjId);
-                printf("\tтип модуля тестирования (пинг-порт-хттп-...) = %s\n", getModuleText(Cfg_Record->ModType));
-
-                printf("\tпорт првоерки = %hd\n", (short) Cfg_Record->Port);
-                printf("\tпериодичность проверки объекта в секундах = %d\n", Cfg_Record->CheckPeriod);
-                printf("\tпериодичность проверки ИП-адреса в секундах, или 0, если проверку делать не нужно = %d\n", Cfg_Record->ResolvePeriod);
-                printf("\tип объекта тестирования = %s\n", ipString(Cfg_Record->IP));
-                printf("\tдата ближайшей проверки. unixtime utc = %x\n", Cfg_Record->NextCheckDt);
-                printf("\tимя хоста = %s\n", Cfg_Record->HostName);
-                printf("\tLObjId предыдущего хоста в folded-цепочке или 0 = %d\n", Cfg_Record->FoldedNext);
-                printf("\tLObjId следующего хоста в folded-цепочке или 0 = %d\n", Cfg_Record->FoldedPrev);
-                printf("\tТаймаут для проверки = %d\n", Cfg_Record->TimeOut);
-                printf("\tРазмер дополнительных данных = %d\n", Cfg_Record->ConfigLen);
-         */
-#endif
-
         if (Cfg_Record->TimeOut == 0 or Cfg_Record->TimeOut >= config.timeout * 950)
             Cfg_Record->TimeOut = config.timeout * 950;
 
+#ifdef DEBUG
+        debug("\tid объекта тестирования = %d", Cfg_Record->LObjId);
+        debug("\tтип модуля тестирования (пинг-порт-хттп-...) = %s", getModuleText(Cfg_Record->ModType));
+
+        debug("\tпорт првоерки = %hd", (short) Cfg_Record->Port);
+        debug("\tпериодичность проверки объекта в секундах = %d", Cfg_Record->CheckPeriod);
+        debug("\tпериодичность проверки ИП-адреса в секундах, или 0, если проверку делать не нужно = %d", Cfg_Record->ResolvePeriod);
+        debug("\tип объекта тестирования = %s", ipString(Cfg_Record->IP));
+        debug("\tдата ближайшей проверки. unixtime utc = %d", Cfg_Record->NextCheckDt);
+        debug("\tимя хоста = %s", Cfg_Record->HostName);
+        debug("\tLObjId предыдущего хоста в folded-цепочке или 0 = %d", Cfg_Record->FoldedNext);
+        debug("\tLObjId следующего хоста в folded-цепочке или 0 = %d", Cfg_Record->FoldedPrev);
+        debug("\tТаймаут для проверки = %d", Cfg_Record->TimeOut);
+        debug("\tРазмер дополнительных данных = %d", Cfg_Record->ConfigLen);
+#endif
+        newShift = Cfg_Record->NextCheckDt % Cfg_Record->CheckPeriod;
+        Cfg_Record->NextCheckDt = ((tv.tv_sec / Cfg_Record->CheckPeriod) * Cfg_Record->CheckPeriod) + RemoteToLocalTime(Cfg_Record->NextCheckDt) % Cfg_Record->CheckPeriod;
+        if (Cfg_Record->NextCheckDt < tv.tv_sec) Cfg_Record->NextCheckDt += Cfg_Record->CheckPeriod;
+
         switch (Cfg_Record->ModType) {
             case MODULE_PING:
-                addICMPTask(pServer, Cfg_Record, Cfg_Record->NextCheckDt - config.TimeStabilization - tv.tv_sec);
+                addICMPTask(pServer, Cfg_Record, newShift);
                 break;
             case MODULE_TCP_PORT:
-                addTCPTask(pServer, Cfg_Record, Cfg_Record->NextCheckDt - config.TimeStabilization - tv.tv_sec);
+                addTCPTask(pServer, Cfg_Record, newShift);
                 break;
             case MODULE_DNS:
                 RecordOffset += Cfg_Record->ConfigLen;
-                addDNSTask(pServer, Cfg_Record, Cfg_Record->NextCheckDt - config.TimeStabilization - tv.tv_sec, (char *) (Cfg_Record + 1));
+                addDNSTask(pServer, Cfg_Record, newShift, (char *) (Cfg_Record + 1));
             default:
                 RecordOffset += Cfg_Record->ConfigLen;
-                addLuaTask(pServer, Cfg_Record, Cfg_Record->NextCheckDt - config.TimeStabilization - tv.tv_sec, (char *) (Cfg_Record + 1));
+                addLuaTask(pServer, Cfg_Record, newShift, (char *) (Cfg_Record + 1));
                 break;
         }
     }
@@ -211,9 +212,9 @@ void onEventFromServer(Server *pServer, short action) {
 
         switch (poll->type) {
             case MODE_SERVER:
-                if (pServer->flagRetriveConfig) onLoadTask(pServer);
                 if (pServer->flagSendReport) SendReport(pServer);
                 if (pServer->flagSendReportError) SendReportError(pServer);
+                if (pServer->flagRetriveConfig) onLoadTask(pServer);
                 break;
         }
     }

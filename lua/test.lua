@@ -7,13 +7,13 @@ local id="66666666"
 
 local AllTest={
     http={
-	default={host="1mm.su",port=80,id=id},
+	default={host="masterday.ru",port=80,id=id},
 	task={
 --	    "1313get18test.php16test=1",
 --	    "1314post18test.php16test=1",
 --	    "1317chksize18test.php147000",
 --	    "1313get1010",
-	    "1418chkwords210/index.htm11116test11",
+	    "1418chkwords11/11118сайт",
 --	    "1414auth18test.php15admin18password"
 	    
 	}
@@ -34,10 +34,10 @@ local AllTest={
     },
 
     smtp={
-	default={host=host,port=25,id=id},
+	default={host="mail.masterday.ru",port=25,id=id},
 	task={
 --		"1314auth220solotester@n1ck.name1812341234",
---		"1314send220solotester@n1ck.name1812341234"
+		"1314auth217test@masterday.ru14test"
 	}
     },
     pop3={

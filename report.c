@@ -1,6 +1,6 @@
 #include "include.h"
 
-Server *pServerDC = NULL;
+Server *pServerSC = NULL;
 struct ReportListHead *Head; /* List head. */
 static pthread_mutex_t *send_mutex = NULL;
 
@@ -26,7 +26,7 @@ void addICMPReport(struct Task * task) {
     ping = getNulledMemory(ReportEntryPtr->Len);
     ping->LObjId = task->LObjId;
     ping->IP = task->Record.IP;
-    ping->CheckDt = poll->CheckDt.tv_sec - config.TimeStabilization;
+    ping->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
     ping->CheckOk = poll->CheckOk;
     ping->DelayMS = task->code == STATE_DONE ? poll->DelayMS : 0xffff;
     ping->ProblemIP = poll->ProblemIP;
@@ -37,12 +37,12 @@ void addICMPReport(struct Task * task) {
             getModuleText(task->Record.ModType),
             task->Record.HostName, ipString(task->Record.IP), task->Record.Port,
             poll->DelayMS,
-            poll->CheckDt,
+            poll->CheckDt.tv_sec,
             getStatusText(task->code));
 
     ReportEntryPtr->Data = (char *) ping;
 
-    if (pServerDC) {
+    if (pServerSC) {
 
         ReportEntryPtrForDC = getNulledMemory(sizeof (struct ReportListEntry));
         memcpy(ReportEntryPtrForDC, ReportEntryPtr, sizeof (struct ReportListEntry));
@@ -50,15 +50,15 @@ void addICMPReport(struct Task * task) {
         memcpy(ReportEntryPtrForDC->Data, ReportEntryPtr->Data, ReportEntryPtr->Len);
 
         if (task->code == STATE_DONE) {
-            pServerDC->report.counterReport++;
+            pServerSC->report.counterReport++;
         } else {
-            pServerDC->report.counterReportError++;
+            pServerSC->report.counterReportError++;
         }
         if (ping->CheckOk) {
-            LIST_INSERT_HEAD(&pServerDC->report.ReportHead, ReportEntryPtrForDC, entries);
+            LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
-            LIST_INSERT_HEAD(&pServerDC->report.ReportErrorHead, ReportEntryPtrForDC, entries);
+            LIST_INSERT_HEAD(&pServerSC->report.ReportErrorHead, ReportEntryPtrForDC, entries);
         }
     }
 
@@ -98,7 +98,7 @@ void addTCPReport(struct Task * task) {
     tcp = getNulledMemory(ReportEntryPtr->Len);
     tcp->LObjId = task->LObjId;
     tcp->IP = task->Record.IP;
-    tcp->CheckDt = poll->CheckDt.tv_sec - config.TimeStabilization;
+    tcp->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
     tcp->CheckOk = task->code == STATE_DONE ? 1 : 0;
     tcp->DelayMS = task->code == STATE_DONE ? poll->DelayMS : 0xffff;
     tcp->ProblemIP = poll->ProblemIP;
@@ -111,27 +111,27 @@ void addTCPReport(struct Task * task) {
             getModuleText(task->Record.ModType),
             task->Record.HostName, ipString(task->Record.IP), task->Record.Port,
             tcp->DelayMS,
-            tcp->CheckDt,
+            poll->CheckDt.tv_sec,
             getStatusText(task->code));
 
     ReportEntryPtr->Data = (char *) tcp;
 
-    if (pServerDC) {
+    if (pServerSC) {
         ReportEntryPtrForDC = getNulledMemory(sizeof (struct ReportListEntry));
         memcpy(ReportEntryPtrForDC, ReportEntryPtr, sizeof (struct ReportListEntry));
         ReportEntryPtrForDC->Data = getNulledMemory(ReportEntryPtr->Len);
         memcpy(ReportEntryPtrForDC->Data, ReportEntryPtr->Data, ReportEntryPtr->Len);
 
         if (task->code == STATE_DONE) {
-            pServerDC->report.counterReport++;
+            pServerSC->report.counterReport++;
         } else {
-            pServerDC->report.counterReportError++;
+            pServerSC->report.counterReportError++;
         }
         if (tcp->CheckOk) {
-            LIST_INSERT_HEAD(&pServerDC->report.ReportHead, ReportEntryPtrForDC, entries);
+            LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
-            LIST_INSERT_HEAD(&pServerDC->report.ReportErrorHead, ReportEntryPtrForDC, entries);
+            LIST_INSERT_HEAD(&pServerSC->report.ReportErrorHead, ReportEntryPtrForDC, entries);
         }
     }
 
@@ -231,8 +231,8 @@ void initReport(Server *pServer) {
         send_mutex = calloc(1, sizeof (*send_mutex));
         pthread_mutex_init(send_mutex, NULL);
     }
-    if (pServer->isDC) {
-        pServerDC = pServer;
+    if (pServer->isSC) {
+        pServerSC = pServer;
     }
     pServer->report.counterReport = 0;
     pServer->report.counterReportError = 0;

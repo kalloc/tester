@@ -191,7 +191,12 @@ unsigned int openConfiguration(char *filename) {
                         config.lua.path = strdup((const char *) xml_attr->value);
                     } else if (!strcmp(xml_attr->name, "log")) {
                         config.log = strdup((const char *) xml_attr->value);
+                    } else if (!strcmp(xml_attr->name, "minrecheck")) {
+                        config.minRecheckPeriod = atoi(xml_attr->value);
+                    } else if (!strcmp(xml_attr->name, "minperiod")) {
+                        config.minPeriod = atoi(xml_attr->value);
                     }
+
                 }
             }
         }
@@ -235,16 +240,16 @@ void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
                 } else if (!strcmp(xml_attr->name, "type")) {
                     if (!strcmp(xml_attr->value, "storage")) {
                         pServer->isSC = 1;
-                    } else if (!strcmp(xml_attr->value, "data")) {
-                        if (config.pServerDC) {
+                        if (config.pServerSC) {
 
                             printf(cRED"ERROR\n"cEND);
-                            printf(cGREEN"\t Only one DataCenter Server in config.xml - "cEND"\n\n");
+                            printf(cGREEN"\t Only one StorageCenter Server in config.xml - "cEND"\n\n");
                             exit(0);
 
                         }
+                        config.pServerSC = pServer;
+                    } else if (!strcmp(xml_attr->value, "data")) {
                         pServer->isDC = 1;
-                        config.pServerDC = pServer;
                     }
                 } else if (!strcmp(xml_attr->name, "periodRetrieve")) {
                     pServer->periodRetrieve = atoi(xml_attr->value);
@@ -291,7 +296,7 @@ int setb(int fd) {
     return 0;
 }
 
-void loger(char *codefile,char *codefunction,int level, const char *fmt, ...) {
+void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) {
 
     /*
         static pthread_mutex_t *mutex = NULL;
@@ -302,7 +307,7 @@ void loger(char *codefile,char *codefunction,int level, const char *fmt, ...) {
       pthread_mutex_lock(mutex);
      */
 
-    int len;
+    int len, second, hour;
     char *buf, *file, *date;
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -317,24 +322,27 @@ void loger(char *codefile,char *codefunction,int level, const char *fmt, ...) {
         fp = fopen(file, "a");
         free(file);
     }
-    len = snprintf(buf, 4096, "%d [%s%s%s%s] %s%s%s%s",
-            tv.tv_sec,
+    if(!fp) return;
+    second = tv.tv_sec - tv.tv_sec / 3600 * 3600;
+    hour = tv.tv_sec / 3600 - (tv.tv_sec / 3600 / 24)*24;
+    len = snprintf(buf, 4096, "[%02d:%02d:%02d %d] [%s%s%s%s] %s%s%s%s",
+            hour, second / 60, second % 60, tv.tv_sec,
             level == LOG_DEBUG ? "DEBUG" : "",
             level == LOG_NOTICE ? "NOTICE" : "",
             level == LOG_INFO ? "INFO" : "",
             level == LOG_WARN ? "WARN" : "",
-            codefile?codefile:"",
-            codefunction?":":"",
-            codefunction?codefunction:"",
-            codefunction?"() ":""
+            codefile ? codefile : "",
+            codefunction ? ":" : "",
+            codefunction ? codefunction : "",
+            codefunction ? "() " : ""
             );
     fwrite(buf, 1, len, fp);
     va_list ap;
     va_start(ap, fmt);
     len = vsnprintf(buf, 4094, fmt, ap);
     buf[len] = '\n';
-    buf[len+ 1] = 0;
-    fwrite(buf, 1, len+1, fp);
+    buf[len + 1] = 0;
+    fwrite(buf, 1, len + 1, fp);
     fflush(fp);
     va_end(ap);
     free(buf);
@@ -385,7 +393,6 @@ char * getActionText(int code) {
             );
     return buf;
 }
-
 
 char * getErrorText(int code) {
     switch (code) {
@@ -442,6 +449,7 @@ char * getModuleText(int code) {
             return "UNKNOW";
     }
 }
+
 char * getRoleText(int code) {
     switch (code) {
         case DNS_SUBTASK:
@@ -456,7 +464,6 @@ char * getRoleText(int code) {
             return "UNKNOW";
     }
 }
-
 
 char * getStatusText(int code) {
     static char buf[1024];

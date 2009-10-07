@@ -10,9 +10,9 @@ module={
 function main(argv) 
 
 
+    local charset=nil
     local net=api:connect()
     local r
-
 
     local get = function (path,arg) 
 	local Request=[[GET /%s?%s HTTP/1.1
@@ -21,7 +21,8 @@ User-Agent: Module_HTTP.Lua (SoloTester.Ru)
 
 ]]
 	net:write(Request:format(path,arg,argv.host))
-	return net:read() or ""
+	r=net:read() or ""
+	return r
     end
 
     local authget = function (path,login,password) 
@@ -32,7 +33,8 @@ Authorization: Basic %s
 
 ]]
 	net:write(Request:format(path,argv.host,(login..":"..password):base64encode()))
-	return net:read() or ""
+	r=net:read() or ""
+	return r
     end
 
     local post = function (path,arg) 
@@ -45,7 +47,8 @@ Content-Type: application/x-www-form-urlencoded
 
 %s]]
 	net:write(Request:format(path,argv.host,#argv.data[2],argv.data[2]))
-	return net:read() or ""
+	r=net:read() or ""
+	return r
     end
     
     
@@ -69,7 +72,13 @@ Content-Type: application/x-www-form-urlencoded
     elseif argv.method == "chkwords" then
 
 	r=get(argv.data[1],"")
-	if r and ((argv.data[2] == "1" and r:find(argv.data[3])) or (argv.data[2] == "0" and not r:find(argv.data[3]))) then    return net:done() end
+	if r then
+	    charset=r:gmatch('Content%-Type:[ ]+[^;]+;[ ]+charset=([a-zA-Z%-0-9]+)')()
+	    if charset and not charset:gfind('([Uu][Tt][Ff]%-?8)')() then
+		r=r:iconv(charset:upper()) or r
+	    end
+	    if r and ((argv.data[2] == "1" and r:find(argv.data[3])) or (argv.data[2] == "0" and not r:find(argv.data[3]))) then    return net:done() end
+	end
 
     elseif argv.method == "chksize" then
 

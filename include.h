@@ -175,6 +175,9 @@ enum {
 
 #define info(...) loger(NULL,NULL,LOG_INFO, __VA_ARGS__);
 
+#define RemoteToLocalTime(x)  (x+config.TimeStabilization)
+#define LocalToRemoteTime(x)  (x-config.TimeStabilization)
+
 typedef struct {
     char *ptr;
     u_int len;
@@ -359,11 +362,13 @@ typedef struct st_config {
         char *path;
     } lua;
     char *log;
-    Server *pServerDC;
+    Server *pServerSC;
     size_t maxInput;
 
     time_t timeout;
     time_t TimeStabilization;
+    time_t minRecheckPeriod;
+    time_t minPeriod;
     u_int testerid;
     int fd;
 
@@ -393,6 +398,7 @@ struct Task {
     unsigned isEnd : 1;
     unsigned isSub : 1;
     unsigned isRead : 1;
+    unsigned isShiftActive : 1;
     unsigned readedSize;
     struct event read;
     void *poll;
@@ -401,8 +407,9 @@ struct Task {
     struct DNSTask *resolv;
     void (*callback)(struct Task *);
     struct _Tester_Cfg_Record Record;
-    u16 timeRemainder;
+    u16 timeShift;
     u32 timeOfLastUpdate;
+    u32 newTimer;
 };
 
 
@@ -480,10 +487,10 @@ void addLuaReport(struct Task *);
 void incStat(int, int);
 
 //Task
-void addTCPTask(Server *, struct _Tester_Cfg_Record *, u32);
-void addICMPTask(Server *, struct _Tester_Cfg_Record *, u32);
-void addLuaTask(Server *, struct _Tester_Cfg_Record *, u32, char *);
-void addDNSTask(Server *, struct _Tester_Cfg_Record *, u32, char *);
+void addTCPTask(Server *, struct _Tester_Cfg_Record *,int);
+void addICMPTask(Server *, struct _Tester_Cfg_Record *,int);
+void addLuaTask(Server *, struct _Tester_Cfg_Record *,int, char *);
+void addDNSTask(Server *, struct _Tester_Cfg_Record *,int, char *);
 void deleteTask(struct Task *);
 #define getTask(id) searchTask(id,TRUE)
 #define createTask(id) searchTask(id,FALSE)

@@ -2,6 +2,7 @@
 require "socket"
 require "base64"
 require "md5"
+require "iconv"
 crypto = require("crypto")
 evp = require("crypto.evp")
 hmac = require("crypto.hmac")
@@ -15,7 +16,6 @@ function clone(t)            -- return a copy of the table t
   end
   return new
 end
-
 
 
 function unPackData(packed) 
@@ -108,6 +108,9 @@ _G.run=function(file,argv)
 	end
 	string.hmac=function (algo,key,data)
 	    return hmac.digest(algo,data,key);
+	end
+	string.iconv=function(s,from) 
+	    return iconv.new( "UTF-8//IGNORE", from):iconv(s)
 	end
 	local err,errtxt=pcall(func)
 	if not err then

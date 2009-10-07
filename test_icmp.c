@@ -184,6 +184,8 @@ void timerICMPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
     debug("id %d, Module %s for %s [%s:%d]", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
+    if(!task->Record.IP) return;
+    
     if (task->isEnd == TRUE) {
         OnDisposeICMPTask(task);
         return;
@@ -205,11 +207,17 @@ void timerICMPTask(int fd, short action, void *arg) {
 
 
     if (task->Record.CheckPeriod  and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
-        tv.tv_sec = task->Record.CheckPeriod;
+        if (task->newTimer) {
+            tv.tv_sec = task->newTimer;
+            task->newTimer = 0;
+        } else {
+            tv.tv_sec = task->Record.CheckPeriod;
+        }
     } else {
         tv.tv_sec = 60;
         task->isEnd = TRUE;
     }
+    task->Record.NextCheckDt += tv.tv_sec;
     evtimer_add(&task->time_ev, &tv);
 
     timerclear(&tv);

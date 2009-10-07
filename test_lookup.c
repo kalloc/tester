@@ -455,6 +455,7 @@ void timerDNSTask(int fd, short action, void *arg) {
         evtimer_add(&task->resolv->timer, &tv);
     }
 
+
 }
 
 static void timerMain(int fd, short action, void *arg) {
