@@ -27,13 +27,14 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/ip.h>
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include <lua5.1/lua.h>
+#include <lua5.1/lauxlib.h>
+#include <lua5.1/lualib.h>
 
 
 #include <ares.h>
 #include <ares_dns.h>
+#include <ares_version.h>
 
 
 #include <event2/event.h>
@@ -135,8 +136,9 @@
     rlimit.rlim_max=100000;\
     bzero(&config, sizeof (struct st_config));\
     timerclear(&tv);\
-    setrlimit(RLIMIT_NOFILE,&rlimit);\
+    setrlimit(RLIMIT_NOFILE,&rlimit);
 
+#define setEnd(t) t->isEnd=TRUE;
 
 /*
  *
@@ -166,6 +168,19 @@ enum {
     LOG_NOTICE
 };
 
+enum {
+    DNS_SUBTASK,
+    DNS_RESOLV,
+    DNS_TASK,
+    DNS_GETNS
+};
+
+
+struct nv {
+    const char *name;
+    int value;
+};
+
 
 #ifdef DEBUG
 #define debug(...) loger(__FILE__,__FUNCTION__,LOG_DEBUG, __VA_ARGS__);
@@ -177,6 +192,16 @@ enum {
 
 #define RemoteToLocalTime(x)  (x+config.TimeStabilization)
 #define LocalToRemoteTime(x)  (x-config.TimeStabilization)
+
+
+#define MSToTimeval(ms,tv)         timerclear(&tv);\
+        if (ms > 1000) {\
+            tv.tv_sec = ms / 1000 / 2;\
+            tv.tv_usec = (ms % 1000)*1000 / 2;\
+        } else {\
+            tv.tv_sec = 0;\
+            tv.tv_usec = ms * 1000 / 2;\
+        }
 
 typedef struct {
     char *ptr;
@@ -266,7 +291,6 @@ struct Poll {
 
 struct stICMPInfo {
     struct timeval CheckDt; // дата проверки, unixtime utc
-    char CheckOk; // нормированный результат проверки. 1=ок, или 0.
     u16 DelayMS; // время получения результата в мс, или 0xFFFF если ответ не был получен
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
@@ -278,7 +302,6 @@ struct stTCPUDPInfo {
     struct bufferevent *bev;
     int fd;
     struct timeval CheckDt; // дата проверки, unixtime utc
-    char CheckOk; // нормированный результат проверки. 1=ок, или 0.
     u16 DelayMS; // время получения результата в мс, или 0xFFFF если ответ не был получен
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
@@ -380,21 +403,30 @@ struct DNSTask {
     struct Task *task;
     struct event timer;
     struct event ev;
-
-    enum {
-        DNS_SUBTASK,
-        DNS_RESOLV,
-        DNS_TASK,
-        DNS_GETNS
-    } role;
+    short role;
     int type;
+
+    u32 taskTTL;
+    short taskType;
+    char *taskPattern;
+    u32 taskPatternLen;
+
+    unsigned isNeed : 1;
     int fd;
+    u32 NSIP;
+
+    char CheckOk; // нормированный результат проверки. 1=ок, или 0.
+    u16 DelayMS; // время получения результата в мс, или 0xFFFF если ответ не был получен
+    struct timeval CheckDt; // дата проверки, unixtime utc
+
+
 };
 
 struct Task {
     u32 LObjId;
     struct event time_ev;
     unsigned code;
+    unsigned isHostAsIp : 1;
     unsigned isEnd : 1;
     unsigned isSub : 1;
     unsigned isRead : 1;
@@ -426,6 +458,7 @@ void InitConnectTo(Server *);
 void readFromServer(int, short, void *);
 
 //Tools
+void setNextTimer(struct Task *);
 unsigned int openConfiguration(char *);
 void base64_encode(char *, int, char *, int *);
 int base64_decode(const unsigned char *, unsigned char *, int *);
@@ -479,6 +512,7 @@ u32 countReportError(Server *);
 u32 countReport(Server *);
 void addICMPReport(struct Task *);
 void addTCPReport(struct Task *);
+void addDNSReport(struct Task *);
 void addReport(struct Task *);
 void initReport();
 void addLuaReport(struct Task *);
@@ -487,10 +521,10 @@ void addLuaReport(struct Task *);
 void incStat(int, int);
 
 //Task
-void addTCPTask(Server *, struct _Tester_Cfg_Record *,int);
-void addICMPTask(Server *, struct _Tester_Cfg_Record *,int);
-void addLuaTask(Server *, struct _Tester_Cfg_Record *,int, char *);
-void addDNSTask(Server *, struct _Tester_Cfg_Record *,int, char *);
+void addTCPTask(Server *, struct _Tester_Cfg_Record *, int);
+void addICMPTask(Server *, struct _Tester_Cfg_Record *, int);
+void addLuaTask(Server *, struct _Tester_Cfg_Record *, int, char *);
+void addDNSTask(Server *, struct _Tester_Cfg_Record *, int, char *);
 void deleteTask(struct Task *);
 #define getTask(id) searchTask(id,TRUE)
 #define createTask(id) searchTask(id,FALSE)
@@ -519,4 +553,7 @@ void timerLuaTask(int, short, void *);
 
 //Tester_DNS
 void timerDNSTask(int, short, void *);
-void lookupInit();
+
+
+//Resolver
+void timerResolv(int, short, void *);
