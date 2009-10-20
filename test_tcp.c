@@ -118,7 +118,7 @@ static void timerMain(int fd, short action, void *arg) {
 
 }
 
-static void initTCPThread() {
+static void initThread() {
     base = event_base_new();
 
     struct event ev;
@@ -132,7 +132,10 @@ static void initTCPThread() {
 
 void initTCPTester() {
     pthread_t threads;
-    pthread_create(&threads, NULL, initTCPThread, NULL);
+    pthread_create(&threads, NULL, initThread, NULL);
 }
 
 
+struct event_base *getTCPBase() {
+    return base;
+}

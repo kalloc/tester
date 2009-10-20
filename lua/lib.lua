@@ -27,7 +27,7 @@ function unPackData(packed)
     pak=packed:sub(razr+1);
     for i=0,list-1 do
 	razr=pak:sub(0,1);
-        len=pak:sub(2,razr+1);
+        len=tonumber(pak:sub(2,razr+1));
 	pak=pak:sub(razr+2);
         table.insert(data,pak:sub(0,len))
         pak=pak:sub(len+1)

@@ -130,8 +130,7 @@
 
 #define initMainVars()         struct timeval tv;\
     struct rlimit rlimit;\
-    struct event_base *base;\
-    base=event_init();\
+    mainBase=event_init();\
     rlimit.rlim_cur=100000;\
     rlimit.rlim_max=100000;\
     bzero(&config, sizeof (struct st_config));\
@@ -535,10 +534,12 @@ void timerICMPTask(int, short, void *);
 void OnReadICMPTask(int, short, void *);
 void OnWriteICMPTask(int, short, void *);
 void initICMPTester();
+struct event_base *getICMPBase();
 
 //Tester_TCP
 void timerTCPTask(int, short, void *);
 void initTCPTester();
+struct event_base *getTCPBase();
 
 //Tester_LUA
 
@@ -550,10 +551,13 @@ void initLUATester();
 #define getLua(name) searchLua(name,TRUE)
 #define createLua(name) searchLua(name,FALSE)
 void timerLuaTask(int, short, void *);
+struct event_base *getLuaBase(int);
 
 //Tester_DNS
 void timerDNSTask(int, short, void *);
-
+struct event_base *getDNSBase();
 
 //Resolver
 void timerResolv(int, short, void *);
+struct event_base *getResolvBase();
+

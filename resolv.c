@@ -196,7 +196,7 @@ static void timerMain(int fd, short action, void *arg) {
 
 }
 
-static void initResolvThread() {
+static void initThread() {
     base = event_base_new();
 
     struct event ev;
@@ -210,7 +210,11 @@ static void initResolvThread() {
 
 void initResolv() {
     pthread_t threads;
-    pthread_create(&threads, NULL, (void*) initResolvThread, NULL);
+    pthread_create(&threads, NULL, (void*) initThread, NULL);
+}
+
+struct event_base *getResolvBase() {
+    return base;
 }
 
 

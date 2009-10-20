@@ -46,7 +46,7 @@ LObjId %id%
 	    --авторизовываемся по CRAM-MD5
 	    net:write("AUTH CRAM-MD5\n")
 	    ret = net:read()
-	    if not ret or not ret:find("^334") then net:error() return end
+	    if not ret or not ret:find("^334") then net:error(ret) return end
 
 	    net:write(string.base64encode(argv.data[1]..' '..string.hmac('md5',argv.data[2],ret:sub(5,-1):base64decode())).."\n")
 	
@@ -58,42 +58,42 @@ LObjId %id%
 	    --авторизовываемся по LOGIN
 	    net:write("AUTH LOGIN\n")
 	    ret = net:read()
-	    if not ret or  not ret:find("^334") then net:error() return end
+	    if not ret or  not ret:find("^334") then net:error(ret) return end
 
 	    net:write(string.base64encode(argv.data[1]).."\n")
 	    ret = net:read()
-	    if not ret or  not ret:find("^334") then net:error() return end
+	    if not ret or  not ret:find("^334") then net:error(ret) return end
 
 	    net:write(string.base64encode(argv.data[2]).."\n")
     else
         --нечем авторизовываться
-	    net:error()
+	    net:error(ret)
 	    return
     end
-
-    if not net:read():find("^235") then net:error() return end
+    ret=net:read()
+    if not ret:find("^235") then net:error(ret) return end
 
     if argv.method == "send" then
 
 	net:write("MAIL FROM: <solotester@solomonitoring.ru>\n");
 	ret = net:read()
-	if not ret or not  ret:find("^250") then       net:error();       return end
+	if not ret or not  ret:find("^250") then       net:error(ret);       return end
 
 	net:write("RCPT TO: <solotester@solomonitoring.ru>\n");
 	ret = net:read()
-	if not ret or not ret:find("^250") then       net:error();       return end
+	if not ret or not ret:find("^250") then       net:error(ret);       return end
 
 	net:write("DATA\n")
 	ret = net:read()
 	print(ret)
 	
-	if not ret or not  ret:find("^354") then       net:error();       return end
+	if not ret or not  ret:find("^354") then       net:error(ret);       return end
 
 	net:write(Request:gsub("%%id%%",argv.id))
 	print("записали дохуя")
 	ret = net:read()
 	print('!!!!!!!!!',ret)
-	if not ret or not ret:find("^250") then       net:error();       return end
+	if not ret or not ret:find("^250") then       net:error(ret);       return end
     end
     --выходим
     net:write("QUIT\n")

@@ -37,6 +37,7 @@ OBJECTFILES= \
 	${OBJECTDIR}/test_lookup.o \
 	${OBJECTDIR}/aes/aes.o \
 	${OBJECTDIR}/tester.o \
+	${OBJECTDIR}/resolv.o \
 	${OBJECTDIR}/test_icmp.o \
 	${OBJECTDIR}/tools.o \
 	${OBJECTDIR}/client.o \
@@ -99,6 +100,11 @@ ${OBJECTDIR}/tester.o: nbproject/Makefile-${CND_CONF}.mk tester.c
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/tester.o tester.c
 
+${OBJECTDIR}/resolv.o: nbproject/Makefile-${CND_CONF}.mk resolv.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/resolv.o resolv.c
+
 ${OBJECTDIR}/test_icmp.o: nbproject/Makefile-${CND_CONF}.mk test_icmp.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
@@ -138,7 +144,7 @@ ${OBJECTDIR}/curve25519-donna/curve25519-donna.o: nbproject/Makefile-${CND_CONF}
 .build-subprojects:
 
 # Clean Targets
-.clean-conf:
+.clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r build/Release
 	${RM} dist/Release/GNU-Linux-x86/tester
 

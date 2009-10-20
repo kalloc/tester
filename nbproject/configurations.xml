@@ -36,6 +36,7 @@
       <itemPath>config.xml</itemPath>
       <itemPath>process.c</itemPath>
       <itemPath>report.c</itemPath>
+      <itemPath>resolv.c</itemPath>
       <itemPath>statistics.c</itemPath>
       <itemPath>tester.c</itemPath>
       <itemPath>tools.c</itemPath>
@@ -63,9 +64,9 @@
           <developmentMode>2</developmentMode>
           <commandlineTool>gcc</commandlineTool>
           <incDir>
-            <pElem>/usr/include/lua5.1</pElem>
             <pElem>/opt/tester/include</pElem>
           </incDir>
+          <commandLine> </commandLine>
           <warningLevel>2</warningLevel>
         </cTool>
         <ccTool>
@@ -83,6 +84,7 @@
             <linkerLibLibItem>rt</linkerLibLibItem>
             <linkerLibFileItem>/opt/tester/lib/libevent_pthreads.a</linkerLibFileItem>
           </linkerLibItems>
+          <commandLine> </commandLine>
         </linkerTool>
       </compileType>
     </conf>

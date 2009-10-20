@@ -1,6 +1,6 @@
 #include "include.h"
 #include <math.h>
-
+extern struct event_base *mainBase;
 struct timeval tv;
 static void *rootForId = NULL;
 struct DNSTask *dnstask;
@@ -59,7 +59,7 @@ void deleteTask(struct Task *task) {
             task->resolv = dnstask; \
             dnstask->role = method; \
             tv.tv_sec = 0; \
-            evtimer_set(&dnstask->timer, timerResolv, task); \
+            event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
             evtimer_add(&dnstask->timer, &tv); \
         } else if(task->isHostAsIp == 1 and method != DNS_RESOLV) {\
             dnstask = getNulledMemory(sizeof (*dnstask)); \
@@ -67,15 +67,15 @@ void deleteTask(struct Task *task) {
             task->resolv = dnstask; \
             dnstask->role = method; \
             tv.tv_sec = 0; \
-            evtimer_set(&dnstask->timer, timerResolv, task); \
+            event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
             evtimer_add(&dnstask->timer, &tv); \
         }
 
 
-#define addTimer(callback) \
+#define addTimer(callback,base) \
         timerclear(&tv);\
         tv.tv_sec = Record->NextCheckDt - pServer->timeOfLastUpdate;\
-        evtimer_set(&task->time_ev, callback, task);\
+        event_assign(&task->time_ev, base?base:mainBase, -1, 0, callback, task);\
         evtimer_add(&task->time_ev, &tv);\
         task->timeShift=newShift;
 
@@ -88,12 +88,12 @@ void deleteTask(struct Task *task) {
             evtimer_add(&task->time_ev, &tv);\
  */
 
-#define modifyCallbackTimer(callback) \
+#define modifyCallbackTimer(callback,base) \
             debug("Lobj %d NewRemainder = %d, OldRemainder = %d, prevNextCheckDt = %d, NextCheckDt = %d", Record->LObjId, newShift, task->timeShift, task->Record.NextCheckDt, Record->NextCheckDt);\
             if (newShift != task->timeShift and task->newTimer == 0 and task->isShiftActive == 0) {\
                 if ((task->Record.NextCheckDt - pServer->timeOfLastUpdate) > config.minRecheckPeriod and (Record->NextCheckDt - pServer->timeOfLastUpdate) > config.minRecheckPeriod ) {\
                     evtimer_del(&task->time_ev);\
-                    addTimer(callback);\
+                    addTimer(callback,base);\
                 } else {\
                     task->newTimer = (Record->CheckPeriod - (task->timeShift - newShift)) % Record->CheckPeriod;\
                     if (task->newTimer <= config.minRecheckPeriod) {\
@@ -119,7 +119,7 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerTCPTask);
+        modifyCallbackTimer(timerTCPTask,getTCPBase());
 
         debug("REPLACE TCP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
 
@@ -128,7 +128,7 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addTCPReport;
-        addTimer(timerTCPTask);
+        addTimer(timerTCPTask,getTCPBase());
         addSubTaskResolv(DNS_RESOLV);
 
         debug("NEW TCP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
@@ -143,13 +143,13 @@ void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShi
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerICMPTask);
+        modifyCallbackTimer(timerICMPTask,getICMPBase());
         debug("REPLACE ICMP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
     } else {
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addICMPReport;
-        addTimer(timerICMPTask);
+        addTimer(timerICMPTask,getICMPBase());
         addSubTaskResolv(DNS_RESOLV);
         debug("NEW ICMP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
     }
@@ -162,7 +162,7 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerLuaTask);
+        modifyCallbackTimer(timerLuaTask,getLuaBase(Record->ModType));
         debug("REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, config);
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(((struct struct_LuaTask *) task->ptr)->ptr);
@@ -176,7 +176,7 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->ptr = getNulledMemory(sizeof (struct struct_LuaTask));
         ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
 
-        addTimer(timerLuaTask);
+        addTimer(timerLuaTask,getLuaBase(Record->ModType));
         addSubTaskResolv(DNS_RESOLV);
         debug("NEW LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
     }
@@ -194,7 +194,7 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerDNSTask);
+        modifyCallbackTimer(timerDNSTask,getDNSBase());
         debug("REPLACE DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(task->ptr);
@@ -223,7 +223,7 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->poll = dnstask;
         task->ptr = getNulledMemory(Record->ConfigLen + 1);
         task->callback = addDNSReport;
-        addTimer(timerDNSTask);
+        addTimer(timerDNSTask,getDNSBase());
         addSubTaskResolv(DNS_GETNS);
         debug("NEW DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
         isNewConfig = 1;

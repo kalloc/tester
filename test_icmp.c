@@ -256,3 +256,8 @@ void initICMPTester() {
 }
 
 
+struct event_base *getICMPBase() {
+    return base;
+}
+
+

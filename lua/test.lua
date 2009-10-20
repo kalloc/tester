@@ -7,13 +7,14 @@ local id="66666666"
 
 local AllTest={
     http={
-	default={host="masterday.ru",port=80,id=id},
+	default={host="www.radabor.ru",port=80,id=id},
 	task={
 --	    "1313get18test.php16test=1",
 --	    "1314post18test.php16test=1",
 --	    "1317chksize18test.php147000",
---	    "1313get1010",
-	    "1418chkwords11/11118сайт",
+--	    "1313get11/10",
+--	    "1518chkwords211/index.html111216Обучение212WINDOWS-1251",
+--	    "1518chkwords211/index.html111216Обучение10",
 --	    "1414auth18test.php15admin18password"
 	    
 	}
@@ -26,7 +27,7 @@ local AllTest={
 --		"1414list210solotester181234123410",
 --		"1414list2182kphoto@radabor.ru15qwert19/catalog/",
 --                "1517chkfile210solotester181234123411/14file",
-		"1514retr210solotester18123412341014file",
+--		"1514retr210solotester18123412341014file",
 --		"1514retr210solotester181234123414/zzz13334",
 --		"1513put210solotester181234123411/15file2",
 --		"1516delete210solotester181234123411/15file2"
@@ -37,7 +38,7 @@ local AllTest={
 	default={host="mail.masterday.ru",port=25,id=id},
 	task={
 --		"1314auth220solotester@n1ck.name1812341234",
-		"1314auth217test@masterday.ru14test"
+--		"1314auth217test@masterday.ru14test"
 	}
     },
     pop3={
@@ -54,9 +55,9 @@ local AllTest={
     telnet={
 	default={host="62.152.37.165",port=23,id=id},
 	task={
---	    "1314auth18testsolo19kjshdf8bh",
+	    "1314auth18testsolo19kjshdf8bh",
 --	    "1413cmd18testsolo19kjshdf8bh16uptime",
---	    "1618chkwords18testsolo19kjshdf8bh16uptime11114days",
+	    "1618chkwords18testsolo19kjshdf8bh16uptime11113day",
 --	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
 	}
     },

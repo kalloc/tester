@@ -722,7 +722,7 @@ static int LuaNetConnect(lua_State * L) {
         bufferevent_enable(poll->bev, EV_WRITE | EV_TIMEOUT);
 
 
-        MSToTimeval(task->Record.TimeOut,tv);
+        MSToTimeval(task->Record.TimeOut, tv);
 
         bufferevent_set_timeouts(poll->bev, &tv, &tv);
 
@@ -846,7 +846,7 @@ static int LuaNetSleep(lua_State * L) {
 
 static int LuaNetError(lua_State * L) {
     struct Task *task = checkLuaNet(L, 1);
-    debug("%d %s Error is %s", task->LObjId, task->isSub ? "is sub" : "",lua_tostring(L, 2));
+    debug("%d %s Error is %s", task->LObjId, task->isSub ? "is sub" : "", lua_tostring(L, 2));
     if (!task->isSub) task->code = STATE_ERROR;
     return 0;
 }
@@ -1087,7 +1087,7 @@ void timerLuaTask(int fd, short action, void *arg) {
     if (task->code) closeLuaConnection(task);
 
     setNextTimer(task);
-   
+
     openLuaConnection(task);
 }
 
@@ -1095,6 +1095,13 @@ void initLUATester() {
     //    pthread_t threads;
     LoadLuaFromDisk();
     //    pthread_create(&threads, NULL, initLuaThread, NULL);
+}
+
+struct event_base *getLuaBase(int ModType) {
+    struct struct_LuaModule *luaModule = getLua(ModType);
+    if (luaModule) {
+        return luaModule->base;
+    }
 }
 
 // gcc -I /usr/include/lua5.1/  curve25519-donna/curve25519-donna.c  -levent  -llua5.1 -lssl yxml.c tools.c test_lua.c -o test_lua && ./test_lua

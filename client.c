@@ -4,14 +4,12 @@ static pthread_mutex_t count_lock;
 struct timeval tv;
 aes_context ctx;
 char IV[16];
-static struct event_base *base = 0L;
+struct event_base *mainBase = 0L;
 char *Buffer = NULL;
 u_int BufferLen = 0;
 
 void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
-    if (what & BEV_EVENT_CONNECTED) {
-        return;
-    }
+    if (what & BEV_EVENT_CONNECTED) return;
     closeConnection((Server *) arg, FALSE);
 }
 
@@ -87,7 +85,7 @@ void InitConnectTo(Server *pServer) {
     pServer->poll->type = MODE_SERVER;
 
 
-    pServer->poll->bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+    pServer->poll->bev = bufferevent_socket_new(mainBase, -1, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_socket_connect(pServer->poll->bev, (struct sockaddr *) & sa, sizeof (sa));
     bufferevent_setcb(pServer->poll->bev, OnBufferedRead, OnBufferedWrite, OnBufferedError, pServer);
     bufferevent_enable(pServer->poll->bev, EV_WRITE | EV_TIMEOUT);
@@ -117,7 +115,7 @@ void timerRetrieveTask(int fd, short action, void *arg) {
     }
     countRetrieve++;
     if (countRetrieve > 100) {
-        countRetrieve=0;
+        countRetrieve = 0;
         restart_handler(0);
     }
 
@@ -216,7 +214,7 @@ int main(int argc, char **argv) {
 
     pthread_mutex_init(&count_lock, NULL);
     evthread_use_pthreads();
-    evthread_make_base_notifiable(base);
+    evthread_make_base_notifiable(mainBase);
 
     initPtr();
     for (ServerId = 0;; ServerId++) {
@@ -253,7 +251,7 @@ int main(int argc, char **argv) {
 
 
     event_dispatch();
-    event_base_free(base);
+    event_base_free(mainBase);
     freePtr();
     return 0;
 }

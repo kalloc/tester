@@ -36,11 +36,8 @@ function main(argv)
 		if not r or not r:find('login: ') then return nil	end
 		net:write(argv.data[1].."\r\n")
 		r=net:read()
-
-		if not r or not r:sub(#argv.data[1]+3):find('^Password') then return nil	end
+		if not r or not r:sub(#argv.data[1]+3):find('Password:') then return nil	end
 		net:write(argv.data[2].."\r\n")
-		net:read()
-
 		r=net:read()
 		if not r or r:find('^Login incorrect') then return nil	end
 		return 1

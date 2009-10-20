@@ -37,6 +37,7 @@ OBJECTFILES= \
 	${OBJECTDIR}/test_lookup.o \
 	${OBJECTDIR}/aes/aes.o \
 	${OBJECTDIR}/tester.o \
+	${OBJECTDIR}/resolv.o \
 	${OBJECTDIR}/test_icmp.o \
 	${OBJECTDIR}/tools.o \
 	${OBJECTDIR}/client.o \
@@ -78,73 +79,78 @@ dist/Debug/GNU-Linux-x86/tester: ${OBJECTFILES}
 ${OBJECTDIR}/report.o: nbproject/Makefile-${CND_CONF}.mk report.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/report.o report.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/report.o report.c
 
 ${OBJECTDIR}/test_lua.o: nbproject/Makefile-${CND_CONF}.mk test_lua.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lua.o test_lua.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lua.o test_lua.c
 
 ${OBJECTDIR}/yxml.o: nbproject/Makefile-${CND_CONF}.mk yxml.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/yxml.o yxml.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/yxml.o yxml.c
 
 ${OBJECTDIR}/test_lookup.o: nbproject/Makefile-${CND_CONF}.mk test_lookup.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lookup.o test_lookup.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lookup.o test_lookup.c
 
 ${OBJECTDIR}/aes/aes.o: nbproject/Makefile-${CND_CONF}.mk aes/aes.c 
 	${MKDIR} -p ${OBJECTDIR}/aes
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/aes/aes.o aes/aes.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/aes/aes.o aes/aes.c
 
 ${OBJECTDIR}/tester.o: nbproject/Makefile-${CND_CONF}.mk tester.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/tester.o tester.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/tester.o tester.c
+
+${OBJECTDIR}/resolv.o: nbproject/Makefile-${CND_CONF}.mk resolv.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/resolv.o resolv.c
 
 ${OBJECTDIR}/test_icmp.o: nbproject/Makefile-${CND_CONF}.mk test_icmp.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_icmp.o test_icmp.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_icmp.o test_icmp.c
 
 ${OBJECTDIR}/tools.o: nbproject/Makefile-${CND_CONF}.mk tools.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/tools.o tools.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/tools.o tools.c
 
 ${OBJECTDIR}/client.o: nbproject/Makefile-${CND_CONF}.mk client.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/client.o client.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/client.o client.c
 
 ${OBJECTDIR}/test_tcp.o: nbproject/Makefile-${CND_CONF}.mk test_tcp.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_tcp.o test_tcp.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_tcp.o test_tcp.c
 
 ${OBJECTDIR}/process.o: nbproject/Makefile-${CND_CONF}.mk process.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/process.o process.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/process.o process.c
 
 ${OBJECTDIR}/statistics.o: nbproject/Makefile-${CND_CONF}.mk statistics.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/statistics.o statistics.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/statistics.o statistics.c
 
 ${OBJECTDIR}/curve25519-donna/curve25519-donna.o: nbproject/Makefile-${CND_CONF}.mk curve25519-donna/curve25519-donna.c 
 	${MKDIR} -p ${OBJECTDIR}/curve25519-donna
 	${RM} $@.d
-	$(COMPILE.c) -g -O -Wall -I/usr/include/lua5.1 -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/curve25519-donna/curve25519-donna.o curve25519-donna/curve25519-donna.c
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/curve25519-donna/curve25519-donna.o curve25519-donna/curve25519-donna.c
 
 # Subprojects
 .build-subprojects:
 
 # Clean Targets
-.clean-conf:
+.clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r build/Debug
 	${RM} dist/Debug/GNU-Linux-x86/tester
 
