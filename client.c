@@ -178,6 +178,7 @@ void initPtr() {
     Buffer = getNulledMemory(BUFLEN);
     initTester();
     initProcess();
+    initResolv();
 }
 
 void freePtr() {

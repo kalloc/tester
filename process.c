@@ -1,5 +1,9 @@
 #include "include.h"
 #include <zlib.h>
+#ifndef __TIMESTAMP__
+#define __TIMESTAMP__ __DATE__" "__TIME__
+#endif
+
 const char version[] = "Tester v0.01/lnx"PLATFORM", Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
 static struct evbuffer *evBuffer = NULL;
 
@@ -185,6 +189,7 @@ void onLoadTask(Server *pServer) {
             case MODULE_DNS:
                 RecordOffset += Cfg_Record->ConfigLen;
                 addDNSTask(pServer, Cfg_Record, newShift, (char *) (Cfg_Record + 1));
+                break;
             default:
                 RecordOffset += Cfg_Record->ConfigLen;
                 addLuaTask(pServer, Cfg_Record, newShift, (char *) (Cfg_Record + 1));
