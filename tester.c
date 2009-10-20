@@ -58,7 +58,7 @@ void deleteTask(struct Task *task) {
             dnstask->task = task; \
             task->resolv = dnstask; \
             dnstask->role = method; \
-            tv.tv_sec = 0; \
+            tv.tv_sec = 1; \
             event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
             evtimer_add(&dnstask->timer, &tv); \
         } else if(task->isHostAsIp == 1 and method != DNS_RESOLV) {\
@@ -66,7 +66,7 @@ void deleteTask(struct Task *task) {
             dnstask->task = task; \
             task->resolv = dnstask; \
             dnstask->role = method; \
-            tv.tv_sec = 0; \
+            tv.tv_sec = 1; \
             event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
             evtimer_add(&dnstask->timer, &tv); \
         }
