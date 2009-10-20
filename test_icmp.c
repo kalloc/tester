@@ -1,5 +1,6 @@
 #include "include.h"
 static struct event_base *base;
+
 struct IcmpPooler {
     int write_fd;
     int read_fd;
@@ -69,8 +70,6 @@ void OnReadICMPTask(int fd, short event, void *arg) {
             icmp_poll = (struct stICMPInfo *) IcmpEntryPtr->task->poll;
             if (lObjId != task->LObjId || IcmpId != icmp_poll->id) continue;
 
-            icmp_poll->DelayMS = timeDiffMS(tv, icmp_poll->CheckDt);
-            icmp_poll->CheckOk = (state == STATE_DONE ? TRUE : FALSE);
             icmp_poll->ProblemICMP_Code = ping->icmp_code;
             icmp_poll->ProblemICMP_Type = ping->icmp_type;
             icmp_poll->ProblemIP = (u32) (state == STATE_DONE ? sa.sin_addr.s_addr : 0);
@@ -159,6 +158,7 @@ void timerTimeoutICMPTask(int fd, short action, void *arg) {
         free(IcmpEntryPtr);
         break;
     }
+
     LIST_FOREACH(IcmpEntryPtr, &IcmpWriteHead, entries) {
         if (task->LObjId != IcmpEntryPtr->task->LObjId) continue;
         LIST_REMOVE(IcmpEntryPtr, entries);
@@ -184,8 +184,8 @@ void timerICMPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
     debug("id %d, Module %s for %s [%s:%d]", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-    if(!task->Record.IP) return;
-    
+    if (!task->Record.IP) return;
+
     if (task->isEnd == TRUE) {
         OnDisposeICMPTask(task);
         return;
@@ -205,27 +205,14 @@ void timerICMPTask(int fd, short action, void *arg) {
     task->code = STATE_TIMEOUT;
 
 
+    setNextTimer(task);
 
-    if (task->Record.CheckPeriod  and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
-        if (task->newTimer) {
-            tv.tv_sec = task->newTimer;
-            task->newTimer = 0;
-        } else {
-            tv.tv_sec = task->Record.CheckPeriod;
-        }
-    } else {
-        tv.tv_sec = 60;
-        task->isEnd = TRUE;
-    }
-    task->Record.NextCheckDt += tv.tv_sec;
-    evtimer_add(&task->time_ev, &tv);
-
-    timerclear(&tv);
     if (task->Record.TimeOut > 1000) {
         tv.tv_sec = task->Record.TimeOut / 1000 / 2;
         tv.tv_usec = (task->Record.TimeOut % 1000)*1000;
     } else {
         tv.tv_usec = task->Record.TimeOut * 1000 / 2;
+        tv.tv_sec = 0;
     }
 
 
@@ -240,33 +227,32 @@ void OnDisposeICMPTask(struct Task * task) {
     deleteTask(task);
 };
 
-
 static void timerMain(int fd, short action, void *arg) {
-    struct event *ev =(struct event *)arg;
-    tv.tv_sec=60;
-    tv.tv_usec=0;
+    struct event *ev = (struct event *) arg;
+    tv.tv_sec = 60;
+    tv.tv_usec = 0;
     evtimer_add(ev, &tv);
 
 }
-
 
 static void initICMPThread() {
     base = event_base_new();
 
     struct event ev;
 
-    tv.tv_sec=60;
-    tv.tv_usec=0;
-    event_assign(&ev, base, -1, 0,  timerMain, &ev);
+    tv.tv_sec = 60;
+    tv.tv_usec = 0;
+    event_assign(&ev, base, -1, 0, timerMain, &ev);
     evtimer_add(&ev, &tv);
     event_base_dispatch(base);
 }
+
 void initICMPTester() {
     pthread_t threads;
     IcmpPoll.write_fd = IcmpPoll.read_fd = 0;
     LIST_INIT(&IcmpReadHead);
     LIST_INIT(&IcmpWriteHead);
-    pthread_create(&threads, NULL, (void*)initICMPThread, NULL);
+    pthread_create(&threads, NULL, (void*) initICMPThread, NULL);
 }
 
 

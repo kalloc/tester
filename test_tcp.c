@@ -13,8 +13,6 @@ void closeTCPConnection(struct Task *task) {
         poll->bev = 0;
     }
 
-    poll->DelayMS = timeDiffMS(tv, poll->CheckDt);
-
     if (task->callback) {
         task->callback(task);
     }
@@ -42,7 +40,6 @@ void OnErrorTCPTask(struct bufferevent *bev, short what, void *arg) {
     debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->Record.LObjId, getModuleText(task->Record.ModType));
 
     getsockopt(poll->fd, SOL_SOCKET, SO_ERROR, (void *) & valopt, &lon);
-    poll->CheckOk = 0;
     task->code = STATE_TIMEOUT;
     //добавляем репорт о ошибке
     closeTCPConnection(task);
@@ -54,7 +51,6 @@ void OnWriteTCPTask(struct bufferevent *bev, void *arg) {
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
 
     task->code = STATE_DONE;
-    poll->CheckOk = 1;
 
     debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->Record.LObjId, getModuleText(task->Record.ModType));
     closeTCPConnection(task);
@@ -108,21 +104,7 @@ void timerTCPTask(int fd, short action, void *arg) {
     if (task->code) closeTCPConnection(task);
 
 
-    timerclear(&tv);
-
-    if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
-        if (task->newTimer) {
-            tv.tv_sec = task->newTimer;
-            task->newTimer = 0;
-        } else {
-            tv.tv_sec = task->Record.CheckPeriod;
-        }
-    } else {
-        tv.tv_sec = 60;
-        task->isEnd = TRUE;
-    }
-    task->Record.NextCheckDt += tv.tv_sec;
-    evtimer_add(&task->time_ev, &tv);
+    setNextTimer(task);
     openTCPConnection(task);
 
 

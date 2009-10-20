@@ -228,8 +228,6 @@ int getLuaModuleId(const char* filename) {
 void closeLuaConnection(struct Task *task) {
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
-    gettimeofday(&tv, NULL);
-    poll->DelayMS = timeDiffMS(tv, poll->CheckDt);
 
     debug("id %d, Module %s for %s [%s:%d] [ms: %d] %s",
             task->LObjId,
@@ -340,6 +338,8 @@ int LuaTaskResume(struct Task *task, int num) {
 void OnErrorLuaTask(struct bufferevent *bev, short what, void *arg) {
     struct Task *task = (struct Task *) arg;
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
+    debug("%s -> id %d, timeout is %d, State %s, Module %s for %s [%s:%d] %s", getActionText(what), task->LObjId, task->Record.TimeOut, getStatusText(task->code), getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
+
     if (what & BEV_EVENT_CONNECTED or what & BEV_EVENT_EOF) {
 
         if (task->code == STATE_CONNECTING) {
@@ -349,14 +349,12 @@ void OnErrorLuaTask(struct bufferevent *bev, short what, void *arg) {
         return;
     }
 
-    debug("%s -> id %d, timeout is %d, State %s, Module %s for %s [%s:%d] %s", getActionText(what), task->LObjId, task->Record.TimeOut, getStatusText(task->code), getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->isSub ? "is sub" : "");
 
     int valopt = 0;
     socklen_t lon = 0;
 
 
     getsockopt(bufferevent_getfd(poll->bev), SOL_SOCKET, SO_ERROR, (void *) & valopt, &lon);
-    poll->CheckOk = 0;
     task->code = STATE_TIMEOUT;
     closeLuaConnection(task);
 
@@ -389,7 +387,7 @@ void OnReadLuaTask(struct bufferevent *bev, void *arg) {
         task->readedSize = len;
 
         timerclear(&tv);
-#define MIN_TTL 100
+#define MIN_TTL 200
         if (task->Record.TimeOut > MIN_TTL) {
             tv.tv_usec = MIN_TTL * 1000;
         } else {
@@ -724,13 +722,7 @@ static int LuaNetConnect(lua_State * L) {
         bufferevent_enable(poll->bev, EV_WRITE | EV_TIMEOUT);
 
 
-        timerclear(&tv);
-        if (task->Record.TimeOut > 1000) {
-            tv.tv_sec = task->Record.TimeOut / 1000 / 2;
-            tv.tv_usec = (task->Record.TimeOut % 1000)*1000 / 2;
-        } else {
-            tv.tv_usec = task->Record.TimeOut * 1000 / 2;
-        }
+        MSToTimeval(task->Record.TimeOut,tv);
 
         bufferevent_set_timeouts(poll->bev, &tv, &tv);
 
@@ -854,7 +846,7 @@ static int LuaNetSleep(lua_State * L) {
 
 static int LuaNetError(lua_State * L) {
     struct Task *task = checkLuaNet(L, 1);
-    debug("%d %s", task->LObjId, task->isSub ? "is sub" : "");
+    debug("%d %s Error is %s", task->LObjId, task->isSub ? "is sub" : "",lua_tostring(L, 2));
     if (!task->isSub) task->code = STATE_ERROR;
     return 0;
 }
@@ -1094,27 +1086,8 @@ void timerLuaTask(int fd, short action, void *arg) {
     if (!task->Record.IP || task->isEnd == TRUE) return;
     if (task->code) closeLuaConnection(task);
 
-    timerclear(&tv);
-
-    if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
-        if (task->newTimer > 0) {
-            debug("Remainder before activate id:%d %d", task->LObjId, task->Record.NextCheckDt);
-//            task->Record.NextCheckDt=task->Record.NextCheckDt-task->Record.CheckPeriod+task->newTimer;
-            tv.tv_sec = task->newTimer;
-            task->newTimer = 0;
-            task->isShiftActive = 1;
-            debug("Remainder activate id:%d %d -> %d", task->LObjId, tv.tv_sec, task->Record.NextCheckDt);
-        } else {
-            task->isShiftActive = 0;
-            tv.tv_sec = task->Record.CheckPeriod;
-        }
-    } else {
-        task->isShiftActive = 0;
-        tv.tv_sec = 60;
-        task->isEnd = TRUE;
-    }
-//    task->timeShift = task->Record.NextCheckDt % task->Record.CheckPeriod;
-    evtimer_add(&task->time_ev, &tv);
+    setNextTimer(task);
+   
     openLuaConnection(task);
 }
 
