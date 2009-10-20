@@ -3,15 +3,36 @@
 #include <zlib.h>
 #include <ctype.h>
 
-int curve25519_donna(u8 *mypublic, const u8 *secret, const u8 *basepoint);
-
+struct timeval tv;
 FILE * fp = 0;
 
 
+//Authorization
+int curve25519_donna(u8 *mypublic, const u8 *secret, const u8 *basepoint);
+unsigned char * genSharedKey(Server *pServer, unsigned char * hispublic) {
+    curve25519_donna(pServer->key.shared, pServer->key.secret, hispublic);
+    return pServer->key.shared;
+}
+unsigned char * genPublicKey(Server *pServer) {
+    static int count = 0;
+    const unsigned char basepoint[32] = {9};
+    if (!pServer->key.public[0] or count > 100) {
+        FILE *fd;
+        fd = fopen("/dev/urandom", "r");
+        fread(pServer->key.secret, 32, 1, fd);
+        fread(pServer->session.garbage, 16, 1, fd);
+        fclose(fd);
+        curve25519_donna(pServer->key.public, pServer->key.secret, basepoint);
+        count = 0;
+    } else {
+        count += 1;
+    }
+    return pServer->key.public;
+}
 
-static const char base64digits[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+// BASE64
+static const char base64digits[] =     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 #define BAD     -1
 static const char base64val[] = {
     BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
@@ -24,7 +45,6 @@ static const char base64val[] = {
     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, BAD, BAD, BAD, BAD, BAD
 };
 #define DECODE64(c)  (isascii(c) ? base64val[c] : BAD)
-
 void base64_encode(char *in, int inlen, char *out, int *outlen) {
     char *save_ptr;
     save_ptr = out;
@@ -53,7 +73,6 @@ void base64_encode(char *in, int inlen, char *out, int *outlen) {
     *out = '\0';
     *outlen = ((int) out - (int) save_ptr);
 }
-
 int base64_decode(const unsigned char *in, unsigned char *out, int *outlen) {
     int len = 0;
     register unsigned char digit1, digit2, digit3, digit4;
@@ -94,6 +113,178 @@ int base64_decode(const unsigned char *in, unsigned char *out, int *outlen) {
     return 0;
 }
 
+// DNS
+static const struct nv classes[] = {
+    { "IN", C_IN},
+    { "CHAOS", C_CHAOS},
+    { "HS", C_HS},
+    { "ANY", C_ANY}
+};
+static const int nclasses = sizeof (classes) / sizeof (classes[0]);
+static const struct nv types[] = {
+    { "A", T_A},
+    { "NS", T_NS},
+    { "MD", T_MD},
+    { "MF", T_MF},
+    { "CNAME", T_CNAME},
+    { "SOA", T_SOA},
+    { "MB", T_MB},
+    { "MG", T_MG},
+    { "MR", T_MR},
+    { "NULL", T_NULL},
+    { "WKS", T_WKS},
+    { "PTR", T_PTR},
+    { "HINFO", T_HINFO},
+    { "MINFO", T_MINFO},
+    { "MX", T_MX},
+    { "TXT", T_TXT},
+    { "RP", T_RP},
+    { "AFSDB", T_AFSDB},
+    { "X25", T_X25},
+    { "ISDN", T_ISDN},
+    { "RT", T_RT},
+    { "NSAP", T_NSAP},
+    { "NSAP_PTR", T_NSAP_PTR},
+    { "SIG", T_SIG},
+    { "KEY", T_KEY},
+    { "PX", T_PX},
+    { "GPOS", T_GPOS},
+    { "AAAA", T_AAAA},
+    { "LOC", T_LOC},
+    { "SRV", T_SRV},
+    { "AXFR", T_AXFR},
+    { "MAILB", T_MAILB},
+    { "MAILA", T_MAILA},
+    { "NAPTR", T_NAPTR},
+    { "ANY", T_ANY}
+};
+static const int ntypes = sizeof (types) / sizeof (types[0]);
+
+inline char * getPTR(char *host) {
+    u_char arpa[100], *ip;
+    in_addr_t in = inet_addr((const char *) host);
+    if (in == -1) return host;
+    ip = (char *) & in;
+    snprintf(&arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
+    return arpa;
+}
+const char *type_name(int type) {
+    int i;
+
+    for (i = 0; i < ntypes; i++) {
+        if (types[i].value == type)
+            return types[i].name;
+    }
+    return "(unknown)";
+}
+const char *class_name(int dnsclass) {
+    int i;
+
+    for (i = 0; i < nclasses; i++) {
+        if (classes[i].value == dnsclass)
+            return classes[i].name;
+    }
+    return "(unknown)";
+}
+inline const unsigned char *skip_question(const unsigned char *aptr, const unsigned char *abuf, int alen) {
+    char *name;
+    int status;
+    long len;
+    status = ares_expand_name(aptr, abuf, alen, &name, &len);
+
+    if (status != ARES_SUCCESS) return NULL;
+    aptr += len;
+    if (aptr + QFIXEDSZ > abuf + alen) {
+        ares_free_string(name);
+        return NULL;
+    }
+    aptr += QFIXEDSZ;
+    ares_free_string(name);
+    return aptr;
+}
+inline int getDNSTypeAfterParseAnswer(const unsigned char *aptr, const unsigned char *abuf, int alen) {
+    int type, dnsclass, ttl, dlen, status;
+    long len;
+
+    union {
+        unsigned char * as_uchar;
+        char * as_char;
+    } name;
+
+    status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
+    if (status != ARES_SUCCESS)
+        return NULL;
+    aptr += len;
+
+    if (aptr + RRFIXEDSZ > abuf + alen) {
+        ares_free_string(name.as_char);
+        return NULL;
+    }
+
+    type = DNS_RR_TYPE(aptr);
+    dnsclass = DNS_RR_CLASS(aptr);
+    ttl = DNS_RR_TTL(aptr);
+    dlen = DNS_RR_LEN(aptr);
+    aptr += RRFIXEDSZ;
+    if (aptr + dlen > abuf + alen) {
+        ares_free_string(name.as_char);
+        return NULL;
+    }
+    ares_free_string(name.as_char);
+    return type;
+}
+inline const u32 getResolvedIPAfterParseAnswer(const unsigned char *aptr, const unsigned char *abuf, int alen) {
+    int type, dnsclass, ttl, dlen, status;
+    long len;
+
+    union {
+        unsigned char * as_uchar;
+        char * as_char;
+    } name;
+
+    /* Parse the RR name. */
+    status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
+    if (status != ARES_SUCCESS)
+        return 0;
+    aptr += len;
+
+    /* Make sure there is enough data after the RR name for the fixed
+     * part of the RR.
+     */
+    if (aptr + RRFIXEDSZ > abuf + alen) {
+        ares_free_string(name.as_char);
+        return 0;
+    }
+
+    /* Parse the fixed part of the RR, and advance to the RR data
+     * field. */
+    type = DNS_RR_TYPE(aptr);
+    dnsclass = DNS_RR_CLASS(aptr);
+    ttl = DNS_RR_TTL(aptr);
+    dlen = DNS_RR_LEN(aptr);
+    aptr += RRFIXEDSZ;
+    if (aptr + dlen > abuf + alen) {
+        ares_free_string(name.as_char);
+        return 0;
+    }
+    hexPrint(abuf, alen);
+    ares_free_string(name.as_char);
+
+    if (type != T_A and type != T_NS) return 0;
+    hexPrint(aptr, dlen);
+    if (dlen != 4)
+        return 0;
+    return *(const u32 *) aptr;
+    /*
+        printf("\t%s\n", inet_ntop(AF_INET, aptr, addr, sizeof (addr)));
+        hexPrint(addr, sizeof (addr));
+        return addr;
+     */
+}
+
+
+
+//LUA
 void stackDump(lua_State *L, int line) {
     int i = lua_gettop(L);
     if (i == 0) return;
@@ -119,15 +310,21 @@ void stackDump(lua_State *L, int line) {
     fflush(stdout);
 }
 
+
+//Time
 int timeDiffMS(struct timeval end, struct timeval start) {
     int time = (int) ((((double) end.tv_sec + (double) end.tv_usec / 1000000) - ((double) start.tv_sec + (double) start.tv_usec / 1000000))*1000);
     return time > 0x7ffe ? -1 : time;
 }
-
 int timeDiffUS(struct timeval end, struct timeval start) {
     return (int) ((((double) end.tv_sec + (double) end.tv_usec / 1000000) - ((double) start.tv_sec + (double) start.tv_usec / 1000000))*1000000);
 }
+double get_timeval_delta(struct timeval *after, struct timeval *before) {
+    return ((double) after ->tv_usec - (double) before->tv_usec);
+}
 
+
+//Memory
 inline void *getNulledMemory(int size) {
     /*
         void *ptr;
@@ -137,11 +334,15 @@ inline void *getNulledMemory(int size) {
      */
     return calloc(1, size);
 }
+
+
+
+
+//Config
 FILE * fdConfig = NULL;
 struct stat * statConfig = NULL;
 char * bufConfig = 0;
 yxml_t * xml = NULL;
-
 unsigned int openConfiguration(char *filename) {
 
 
@@ -206,14 +407,12 @@ unsigned int openConfiguration(char *filename) {
 
     return status;
 }
-
 void closeConfiguration() {
     if (bufConfig) free(bufConfig);
     if (fdConfig) fclose(fdConfig);
     if (xml) yxml_free(xml);
     free(statConfig);
 }
-
 void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
 
     yxml_t * pxml = NULL;
@@ -264,38 +463,7 @@ void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
 }
 
 
-/*
-Data makeData(char *ptr, u_int len) {
-    static Data data;
-    data.ptr = ptr;
-    data.len = len;
-    return data;
-}
- */
-
-/*
-static long long rdtsc(void) {
-    long long l;
-    asm volatile("rdtsc\r\n" : "=A" (l));
-    return l;
-}
- */
-
-double get_timeval_delta(struct timeval *after, struct timeval *before) {
-    return ((double) after ->tv_usec - (double) before->tv_usec);
-}
-
-int setb(int fd) {
-    int flags;
-    flags = fcntl(fd, F_GETFL);
-    if (flags < 0) return flags;
-
-    flags ^= O_NONBLOCK;
-    if (fcntl(fd, F_SETFL, flags) < 0) return -1;
-
-    return 0;
-}
-
+//Loger
 void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) {
 
     /*
@@ -349,6 +517,95 @@ void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) 
     //    pthread_mutex_unlock(mutex);
 }
 
+
+//Reload
+void restart_handler(int signum) {
+    if (fp != 0) fclose(fp);
+    fp = 0;
+}
+
+
+//Network
+void closeConnection(Server *pServer, short needDelete) {
+    struct Poll * poll = pServer->poll;
+
+    if (poll->bev) {
+        bufferevent_free(poll->bev);
+    }
+#ifdef DEBUG
+    if (poll->type == MODE_SERVER) {
+        debug("MODE_SERVER %s:%d", pServer->host, pServer->port);
+    } else {
+        debug("%s/%s", getStatusText(poll->status), getActionText(poll->type));
+    }
+#endif
+    poll->status = STATE_DISCONNECTED;
+    if (poll->fd) {
+        shutdown(poll->fd, 1);
+        close(poll->fd);
+        poll->fd = 0;
+    }
+
+    if (needDelete) {
+        if ((char *) & poll->ev != 0) {
+            event_del(&poll->ev);
+        }
+        free(poll);
+    }
+}
+void inline setNextTimer(struct Task *task) {
+    timerclear(&tv);
+    if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
+        if (task->newTimer > 0) {
+            debug("Remainder before activate id:%d %d", task->LObjId, task->Record.NextCheckDt);
+            tv.tv_sec = task->newTimer;
+            task->newTimer = 0;
+            task->isShiftActive = 1;
+            debug("Remainder activate id:%d %d -> %d", task->LObjId, tv.tv_sec, task->Record.NextCheckDt);
+        } else {
+            task->isShiftActive = 0;
+            tv.tv_sec = task->Record.CheckPeriod;
+        }
+    } else {
+        task->isShiftActive = 0;
+        tv.tv_sec = 60;
+        task->isEnd = TRUE;
+    }
+    evtimer_add(&task->time_ev, &tv);
+}
+int in_cksum(u_short *addr, int len) {
+    int nleft = len;
+    u_short *w = addr;
+    int sum = 0;
+    u_short answer = 0;
+
+    while (nleft > 1) {
+        sum += *w++;
+        nleft -= 2;
+    }
+
+    if (nleft == 1) {
+        *(u_char *) (&answer) = *(u_char *) w;
+        sum += answer;
+    }
+
+    sum = (sum >> 16) + (sum & 0xffff); /* add hi 16 to low 16 */
+    sum += (sum >> 16); /* add carry */
+    answer = ~sum; /* truncate to 16 bits */
+
+    return (answer);
+}
+
+//String
+void strtolower(char *str) {
+    for (; *str; str++) {
+        if (*str >= 'A' && *str <= 'Z') {
+            *str += 32;
+        } else if (*str >= 192 && *str <= 223) {
+            *str += 32;
+        }
+    }
+}
 char * ConnectedIpString(Server *pServer) {
     static char IP[23];
     char *ptr;
@@ -360,7 +617,6 @@ char * ConnectedIpString(Server *pServer) {
 
 
 }
-
 char * ipString(u32 net) {
     char *ptr;
     struct in_addr in;
@@ -368,32 +624,15 @@ char * ipString(u32 net) {
     ptr = inet_ntoa(in);
     return ptr ? ptr : "UNKNOW";
 }
-
-void restart_handler(int signum) {
-    if (fp != 0) fclose(fp);
-    fp = 0;
-}
-
-void strtolower(char *str) {
-    for (; *str; str++) {
-        if (*str >= 'A' && *str <= 'Z') {
-            *str += 32;
-        } else if (*str >= 192 && *str <= 223) {
-            *str += 32;
-        }
-    }
-}
-
 char * getActionText(int code) {
     static char buf[100];
-    snprintf(buf, 100, "%s%s%s [%d]",
+    snprintf(buf, 100, "%s%s%s [%x]",
             code & EV_READ ? "EV_READ " : "",
             code & EV_WRITE ? "EV_WRITE " : "",
             code & EV_TIMEOUT ? "EV_TIMEOUT " : "", code
             );
     return buf;
 }
-
 char * getErrorText(int code) {
     switch (code) {
         case SOCK_RC_TIMEOUT:
@@ -424,7 +663,6 @@ char * getErrorText(int code) {
             return "UNKNOW";
     }
 }
-
 char * getModuleText(int code) {
     switch (code) {
         case MODULE_PING:
@@ -449,7 +687,6 @@ char * getModuleText(int code) {
             return "UNKNOW";
     }
 }
-
 char * getRoleText(int code) {
     switch (code) {
         case DNS_SUBTASK:
@@ -464,7 +701,6 @@ char * getRoleText(int code) {
             return "UNKNOW";
     }
 }
-
 char * getStatusText(int code) {
     static char buf[1024];
     snprintf(buf, 1024, "%s%s%s%s%s%s%s%s%s%s [%d]",
@@ -482,41 +718,10 @@ char * getStatusText(int code) {
             );
     return buf;
 }
-
-void
-closeConnection(Server *pServer, short needDelete) {
-    struct Poll * poll = pServer->poll;
-
-    if (poll->bev) {
-        bufferevent_free(poll->bev);
-    }
-#ifdef DEBUG
-    if (poll->type == MODE_SERVER) {
-        debug("MODE_SERVER %s:%d", pServer->host, pServer->port);
-    } else {
-        debug("%s/%s", getStatusText(poll->status), getActionText(poll->type));
-    }
-#endif
-    poll->status = STATE_DISCONNECTED;
-    if (poll->fd) {
-        shutdown(poll->fd, 1);
-        close(poll->fd);
-        poll->fd = 0;
-    }
-
-    if (needDelete) {
-        if ((char *) & poll->ev != 0) {
-            event_del(&poll->ev);
-        }
-        free(poll);
-    }
-}
-
 int hex2bin(char *hex, char *bin) {
 
     return 0;
 }
-
 unsigned char * bin2hex(unsigned char *bin, int len) {
     static u_char hex[BUFLEN];
     bzero(&hex, BUFLEN);
@@ -541,63 +746,6 @@ unsigned char * bin2hex(unsigned char *bin, int len) {
     return hex;
 
 }
-
-/* in_cksum from ping.c --
- *      Checksum routine for Internet Protocol family headers (C Version)
- *
- * Copyright (c) 1989, 1993
- *      The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Mike Muuss.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-int in_cksum(u_short *addr, int len) {
-    int nleft = len;
-    u_short *w = addr;
-    int sum = 0;
-    u_short answer = 0;
-
-    while (nleft > 1) {
-        sum += *w++;
-        nleft -= 2;
-    }
-
-    if (nleft == 1) {
-        *(u_char *) (&answer) = *(u_char *) w;
-        sum += answer;
-    }
-
-    sum = (sum >> 16) + (sum & 0xffff); /* add hi 16 to low 16 */
-    sum += (sum >> 16); /* add carry */
-    answer = ~sum; /* truncate to 16 bits */
-
-    return (answer);
-}
-
 void hexPrint(char *inPtr, int inLen) {
 #define LINE_LEN 16
     int sOffset = 0;
@@ -630,34 +778,12 @@ void hexPrint(char *inPtr, int inLen) {
     }
 }
 
-unsigned char * genSharedKey(Server *pServer, unsigned char * hispublic) {
-    curve25519_donna(pServer->key.shared, pServer->key.secret, hispublic);
-    return pServer->key.shared;
-}
-
-unsigned char * genPublicKey(Server *pServer) {
-    static int count = 0;
-    const unsigned char basepoint[32] = {9};
-    if (!pServer->key.public[0] or count > 100) {
-        FILE *fd;
-        fd = fopen("/dev/urandom", "r");
-        fread(pServer->key.secret, 32, 1, fd);
-        fread(pServer->session.garbage, 16, 1, fd);
-        fclose(fd);
-        curve25519_donna(pServer->key.public, pServer->key.secret, basepoint);
-        count = 0;
-    } else {
-        count += 1;
-    }
-    return pServer->key.public;
-}
-
 #ifdef TEST
 
 // строка для теста
 
 int main(int argc, char **argv) {
-    char ptr[40000], ptr2[40000];
+    char ptask[40000], ptr2[40000];
     char Plain[] = "Some Some Chars";
     int len, fd;
     char public1[32], public2[32], private1[32], private2[32], shared1[32], shared2[32];
