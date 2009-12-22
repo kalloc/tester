@@ -32,7 +32,7 @@ unsigned char * genPublicKey(Server *pServer) {
 
 
 // BASE64
-static const char base64digits[] =     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char base64digits[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 #define BAD     -1
 static const char base64val[] = {
     BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
@@ -160,14 +160,6 @@ static const struct nv types[] = {
 };
 static const int ntypes = sizeof (types) / sizeof (types[0]);
 
-inline char * getPTR(char *host) {
-    u_char arpa[100], *ip;
-    in_addr_t in = inet_addr((const char *) host);
-    if (in == -1) return host;
-    ip = (char *) & in;
-    snprintf(&arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
-    return arpa;
-}
 const char *type_name(int type) {
     int i;
 
@@ -177,6 +169,7 @@ const char *type_name(int type) {
     }
     return "(unknown)";
 }
+
 const char *class_name(int dnsclass) {
     int i;
 
@@ -186,6 +179,7 @@ const char *class_name(int dnsclass) {
     }
     return "(unknown)";
 }
+
 inline const unsigned char *skip_question(const unsigned char *aptr, const unsigned char *abuf, int alen) {
     char *name;
     int status;
@@ -202,6 +196,7 @@ inline const unsigned char *skip_question(const unsigned char *aptr, const unsig
     ares_free_string(name);
     return aptr;
 }
+
 inline int getDNSTypeAfterParseAnswer(const unsigned char *aptr, const unsigned char *abuf, int alen) {
     int type, dnsclass, ttl, dlen, status;
     long len;
@@ -233,6 +228,7 @@ inline int getDNSTypeAfterParseAnswer(const unsigned char *aptr, const unsigned 
     ares_free_string(name.as_char);
     return type;
 }
+
 inline const u32 getResolvedIPAfterParseAnswer(const unsigned char *aptr, const unsigned char *abuf, int alen) {
     int type, dnsclass, ttl, dlen, status;
     long len;
@@ -285,6 +281,7 @@ inline const u32 getResolvedIPAfterParseAnswer(const unsigned char *aptr, const 
 
 
 //LUA
+
 void stackDump(lua_State *L, int line) {
     int i = lua_gettop(L);
     if (i == 0) return;
@@ -312,19 +309,23 @@ void stackDump(lua_State *L, int line) {
 
 
 //Time
+
 int timeDiffMS(struct timeval end, struct timeval start) {
     int time = (int) ((((double) end.tv_sec + (double) end.tv_usec / 1000000) - ((double) start.tv_sec + (double) start.tv_usec / 1000000))*1000);
     return time > 0x7ffe ? -1 : time;
 }
+
 int timeDiffUS(struct timeval end, struct timeval start) {
     return (int) ((((double) end.tv_sec + (double) end.tv_usec / 1000000) - ((double) start.tv_sec + (double) start.tv_usec / 1000000))*1000000);
 }
+
 double get_timeval_delta(struct timeval *after, struct timeval *before) {
     return ((double) after ->tv_usec - (double) before->tv_usec);
 }
 
 
 //Memory
+
 inline void *getNulledMemory(int size) {
     /*
         void *ptr;
@@ -343,6 +344,9 @@ FILE * fdConfig = NULL;
 struct stat * statConfig = NULL;
 char * bufConfig = 0;
 yxml_t * xml = NULL;
+yxml_t * tester_xml = NULL;
+yxml_t * servers_xml = NULL;
+
 unsigned int openConfiguration(char *filename) {
 
 
@@ -375,59 +379,68 @@ unsigned int openConfiguration(char *filename) {
             printf(cGREEN"\tunable to parse xml - "cEND""cBLUE"%s"cEND"\n\n", filename);
             status = FALSE;
         }
+        if (strcmp(xml->name, "config")) {
+            status = FALSE;
+        } else {
+            xml = xml->details;
+        }
     }
 
     if (status) {
+
         for (pxml = xml; pxml != 0; pxml = pxml->next) {
             if (!strcmp(pxml->name, "tester")) {
-                //извлекаем key, period и timeout
-                for (xml_attr = pxml->attrs; xml_attr; xml_attr = xml_attr->next) {
-                    if (!strcmp(xml_attr->name, "id")) {
-                        config.testerid = atoi(xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "timeout")) {
-                        config.timeout = atoi(xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "maxread")) {
-                        config.maxInput = atoi(xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "path")) {
-                        config.lua.path = strdup((const char *) xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "log")) {
-                        config.log = strdup((const char *) xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "minrecheck")) {
-                        config.minRecheckPeriod = atoi(xml_attr->value);
-                    } else if (!strcmp(xml_attr->name, "minperiod")) {
-                        config.minPeriod = atoi(xml_attr->value);
-                    }
-
-                }
+                tester_xml = pxml;
+            } else if (!strcmp(pxml->name, "servers")) {
+                servers_xml = pxml;
             }
         }
+        if(!tester_xml and !servers_xml)   return FALSE;
+                
+        for (xml_attr = tester_xml->attrs; xml_attr; xml_attr = xml_attr->next) {
+            if (!strcmp(xml_attr->name, "id")) {
+                config.testerid = atoi(xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "timeout")) {
+                config.timeout = atoi(xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "maxread")) {
+                config.maxInput = atoi(xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "path")) {
+                config.lua.path = strdup((const char *) xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "log")) {
+                config.log = strdup((const char *) xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "minrecheck")) {
+                config.minRecheckPeriod = atoi(xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "minperiod")) {
+                config.minPeriod = atoi(xml_attr->value);
+            }
 
+        }
     }
-
 
     return status;
 }
+
 void closeConfiguration() {
     if (bufConfig) free(bufConfig);
     if (fdConfig) fclose(fdConfig);
     if (xml) yxml_free(xml);
     free(statConfig);
 }
-void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
+
+void loadServerFromConfiguration(Server *pServer, u32 skip) {
 
     yxml_t * pxml = NULL;
     yxml_attr_t *xml_attr = NULL;
     char key[50];
-    if (ServerId == 0) {
-        snprintf((char *) & key, 50, "server");
-    } else {
-        snprintf((char *) & key, 50, "server%d", ServerId);
-    }
-    for (pxml = xml; pxml != 0; pxml = pxml->next) {
-        //ключ server
-        if (!strcmp(pxml->name, key)) {
+    u8 count=0;
+
+    for (pxml = servers_xml->details; pxml and count <= skip; pxml = pxml->next,count++) {
+        if (!strcmp(pxml->name, "server")) {
+            if(count < skip) continue;
             //извлекаем host и port
             for (xml_attr = pxml->attrs; xml_attr; xml_attr = xml_attr->next) {
+
+
                 if (!strcmp(xml_attr->name, "host")) {
                     pServer->host = strdup((const char *) xml_attr->value);
                 } else if (!strcmp(xml_attr->name, "port")) {
@@ -436,6 +449,8 @@ void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
                     snprintf(pServer->session.password, 42, "%s", xml_attr->value);
                 } else if (!strcmp(xml_attr->name, "timeout")) {
                     pServer->timeout = atoi(xml_attr->value);
+                } else if (!strcmp(xml_attr->name, "verifer")) {
+                    config.pVeriferDC=pServer;
                 } else if (!strcmp(xml_attr->name, "type")) {
                     if (!strcmp(xml_attr->value, "storage")) {
                         pServer->isSC = 1;
@@ -447,6 +462,16 @@ void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
 
                         }
                         config.pServerSC = pServer;
+                    } else if (!strcmp(xml_attr->value, "verifer")) {
+                        pServer->isVerifer = 1;
+                        if (config.pVerifer) {
+
+                            printf(cRED"ERROR\n"cEND);
+                            printf(cGREEN"\t Only one Verifer defined in config.xml - "cEND"\n\n");
+                            exit(0);
+
+                        }
+                        config.pVerifer = pServer;
                     } else if (!strcmp(xml_attr->value, "data")) {
                         pServer->isDC = 1;
                     }
@@ -464,6 +489,7 @@ void loadServerFromConfiguration(Server *pServer, u32 ServerId) {
 
 
 //Loger
+
 void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) {
 
     /*
@@ -490,7 +516,7 @@ void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) 
         fp = fopen(file, "a");
         free(file);
     }
-    if(!fp) return;
+    if (!fp) return;
     second = tv.tv_sec - tv.tv_sec / 3600 * 3600;
     hour = tv.tv_sec / 3600 - (tv.tv_sec / 3600 / 24)*24;
     len = snprintf(buf, 4096, "[%02d:%02d:%02d %d] [%s%s%s%s] %s%s%s%s",
@@ -519,6 +545,7 @@ void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) 
 
 
 //Reload
+
 void restart_handler(int signum) {
     if (fp != 0) fclose(fp);
     fp = 0;
@@ -526,6 +553,7 @@ void restart_handler(int signum) {
 
 
 //Network
+
 void closeConnection(Server *pServer, short needDelete) {
     struct Poll * poll = pServer->poll;
 
@@ -553,6 +581,7 @@ void closeConnection(Server *pServer, short needDelete) {
         free(poll);
     }
 }
+
 void inline setNextTimer(struct Task *task) {
     timerclear(&tv);
     if (task->Record.CheckPeriod and task->pServer->timeOfLastUpdate == task->timeOfLastUpdate) {
@@ -573,6 +602,7 @@ void inline setNextTimer(struct Task *task) {
     }
     evtimer_add(&task->time_ev, &tv);
 }
+
 int in_cksum(u_short *addr, int len) {
     int nleft = len;
     u_short *w = addr;
@@ -597,6 +627,7 @@ int in_cksum(u_short *addr, int len) {
 }
 
 //String
+
 void strtolower(char *str) {
     for (; *str; str++) {
         if (*str >= 'A' && *str <= 'Z') {
@@ -606,6 +637,7 @@ void strtolower(char *str) {
         }
     }
 }
+
 char * ConnectedIpString(Server *pServer) {
     static char IP[23];
     char *ptr;
@@ -617,6 +649,7 @@ char * ConnectedIpString(Server *pServer) {
 
 
 }
+
 char * ipString(u32 net) {
     char *ptr;
     struct in_addr in;
@@ -624,6 +657,7 @@ char * ipString(u32 net) {
     ptr = inet_ntoa(in);
     return ptr ? ptr : "UNKNOW";
 }
+
 char * getActionText(int code) {
     static char buf[100];
     snprintf(buf, 100, "%s%s%s [%x]",
@@ -633,6 +667,7 @@ char * getActionText(int code) {
             );
     return buf;
 }
+
 char * getErrorText(int code) {
     switch (code) {
         case SOCK_RC_TIMEOUT:
@@ -663,6 +698,7 @@ char * getErrorText(int code) {
             return "UNKNOW";
     }
 }
+
 char * getModuleText(int code) {
     switch (code) {
         case MODULE_PING:
@@ -687,6 +723,7 @@ char * getModuleText(int code) {
             return "UNKNOW";
     }
 }
+
 char * getRoleText(int code) {
     switch (code) {
         case DNS_SUBTASK:
@@ -701,6 +738,7 @@ char * getRoleText(int code) {
             return "UNKNOW";
     }
 }
+
 char * getStatusText(int code) {
     static char buf[1024];
     snprintf(buf, 1024, "%s%s%s%s%s%s%s%s%s%s [%d]",
@@ -718,10 +756,12 @@ char * getStatusText(int code) {
             );
     return buf;
 }
+
 int hex2bin(char *hex, char *bin) {
 
     return 0;
 }
+
 unsigned char * bin2hex(unsigned char *bin, int len) {
     static u_char hex[BUFLEN];
     bzero(&hex, BUFLEN);
@@ -746,6 +786,7 @@ unsigned char * bin2hex(unsigned char *bin, int len) {
     return hex;
 
 }
+
 void hexPrint(char *inPtr, int inLen) {
 #define LINE_LEN 16
     int sOffset = 0;
