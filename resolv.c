@@ -4,6 +4,16 @@ struct timeval tv;
 static struct event_base *base;
 struct DNSTask *dnstask;
 
+static inline char * getPTR(char *host) {
+    char arpa[100];
+    u_char *ip;
+    in_addr_t in = inet_addr((const char *) host);
+    if (in == -1) return host;
+    ip = (char *) & in;
+    snprintf(arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
+    return arpa;
+}
+
 void OnEventResolv(int fd, short event, void *arg) {
     struct DNSTask *dnstask = (struct DNSTask *) arg;
     debug("event:%s, LobjId:%d, Hostname %s", getActionText(event), dnstask->task->LObjId, dnstask->task->Record.HostName);
@@ -12,21 +22,31 @@ void OnEventResolv(int fd, short event, void *arg) {
     }
 
     if (!dnstask->isNeed) {
-        ares_destroy(dnstask->channel);
         event_del(&dnstask->ev);
+        ares_destroy(dnstask->channel);
     }
 }
 
 void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen) {
     struct DNSTask *dnstask = (struct DNSTask *) arg;
+    struct Task *task = (struct Task *) dnstask->task;
     char *query;
     int id, qr, opcode, aa, tc, rd, ra, rcode, len;
-    u32 ip;
+    u32 ip = 0;
+    dnstask->isNeed = 0;
     unsigned int qdcount, ancount, nscount, arcount, i;
     const unsigned char *aptr;
-    debug("LobjId:%d, Hostname %s", dnstask->task->LObjId, dnstask->task->Record.HostName);
-    if (status != ARES_SUCCESS and status != ARES_ENODATA) {
+    debug("1 LobjId:%d, Hostname %s, status : %d", dnstask->task->LObjId, dnstask->task->Record.HostName, status);
+    if (status == ARES_EDESTRUCTION) return;
+    if (status != ARES_SUCCESS and status != ARES_ENODATA and status != ARES_ENOTFOUND) {
+        switch (dnstask->role) {
+            case DNS_GETNS:
+                dnstask->NSIP = 0;
+                task->code = STATE_TIMEOUT;
+                task->callback(task);
+        }
         return;
+
     }
 
     /* Parse the answer header. */
@@ -46,46 +66,43 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
     aptr = abuf + HFIXEDSZ;
 
     ares_expand_name(aptr, abuf, alen, &query, &len);
-
     for (i = 0; i < qdcount; i++) {
         aptr = skip_question(aptr, abuf, alen);
         if (aptr == NULL) return;
     }
-    struct hostent *he;
+    struct hostent * phe[1] = {NULL, NULL}, *he;
     struct addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;
+
     switch (dnstask->role) {
         case DNS_RESOLV:
-            he = getNulledMemory(sizeof (*he));
-            ares_parse_a_reply(abuf, alen, &he, &addrttls, &i);
-
-            if (he->h_addrtype) {
+            ares_parse_a_reply(abuf, alen, &phe, &addrttls, &i);
+            he = phe[0];
+            if (he) {
                 if (he->h_addr) {
+                    for (i = 0; he->h_addr_list[i] != 0; i++);
                     ip = *(u32 *) he->h_addr_list[id % i];
-
                     debug("FOUND IP %s -> %s", ipString(ip), he->h_name);
-                    if (ip) {
-                        dnstask->task->Record.IP = ip;
-                    }
-
                     ares_free_hostent(he);
                 }
-            } else {
-                free(he);
+            }
+
+            if (ip) {
+                task->Record.IP = ip;
             }
 
             break;
         case DNS_GETNS:
 
-            he = getNulledMemory(sizeof (*he));
             switch (getDNSTypeAfterParseAnswer(aptr, abuf, alen)) {
                 case T_A:
-                    ares_parse_a_reply(abuf, alen, &he, &addrttls, &i);
+                    ares_parse_a_reply(abuf, alen, &phe, &addrttls, &i);
                     break;
                 case T_NS:
-                    ares_parse_ns_reply(abuf, alen, &he);
+                    ares_parse_ns_reply(abuf, alen, &phe);
                     break;
                 default:
+                    phe[0] = 0;
                     tv.tv_usec = 0;
                     tv.tv_sec = config.timeout;
                     ptr = query;
@@ -99,21 +116,21 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
                     }
                     if (i <= 1) {
                         dnstask->task->code = STATE_ERROR;
+                        debug("2 LobjId:%d, Role %s, Hostname %s, %i, %s", task->LObjId, getRoleText(task->resolv->role), task->Record.HostName, i, query);
                         dnstask->task->callback(dnstask->task);
-                        break;
+                    } else {
+                        dnstask->isNeed = 1;
+                        ares_query(dnstask->channel, ptr2, C_IN, T_NS, ResolvCallback, dnstask);
+                        event_add(&dnstask->ev, &tv);
                     }
-                    dnstask->isNeed = 1;
-                    ares_query(dnstask->channel, ptr2, C_IN, T_NS, ResolvCallback, dnstask);
-                    ares_getsock(dnstask->channel, &dnstask->fd, 1);
-                    event_assign(&dnstask->ev, base, dnstask->fd, EV_READ | EV_TIMEOUT, OnEventResolv, dnstask);
-                    event_add(&dnstask->ev, &tv);
-                    break;
+                    return;
             }
-            if (he->h_addrtype) {
+            he = phe[0];
+            if (he) {
+                debug("he found is %08x, phe[0]", he, phe[0]);
                 if (he->h_addr) {
                     ip = *(u32 *) he->h_addr_list[0];
-                    dnstask->isNeed = 0;
-                    debug("FOUND IP %s -> %s", ipString(ip), he->h_name);
+                    debug("2FOUND IP %s -> %s", ipString(ip), he->h_name);
                     if (ip) {
                         dnstask->NSIP = ip;
                     }
@@ -126,27 +143,23 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
                     tv.tv_usec = 0;
                     tv.tv_sec = config.timeout;
                     ares_query(dnstask->channel, he->h_aliases[i], C_IN, T_A, ResolvCallback, dnstask);
-                    ares_getsock(dnstask->channel, &dnstask->fd, 1);
-                    event_assign(&dnstask->ev, base, dnstask->fd, EV_READ | EV_TIMEOUT, OnEventResolv, dnstask);
                     event_add(&dnstask->ev, &tv);
                 }
                 ares_free_hostent(he);
             } else {
-                free(he);
+                dnstask->NSIP = 0;
+                task->code = STATE_TIMEOUT;
+                task->callback(task);
             }
             break;
-
     }
+    //    free(phe);
 
 
 }
 
 void makeResolv(struct DNSTask * dnstask) {
     int type;
-    struct ares_options options;
-    int optmask;
-
-
     switch (dnstask->role) {
         case DNS_RESOLV:
             type = T_A;
@@ -164,8 +177,7 @@ void makeResolv(struct DNSTask * dnstask) {
             return;
             break;
     }
-
-
+    debug("LobjId:%d, Role %s, Hostname %s, fd %d", dnstask->task->LObjId, getRoleText(dnstask->task->resolv->role), dnstask->task->Record.HostName, dnstask->fd);
     ares_query(dnstask->channel, getPTR(dnstask->task->Record.HostName), C_IN, type, ResolvCallback, dnstask);
     ares_getsock(dnstask->channel, &dnstask->fd, 1);
     event_assign(&dnstask->ev, base, dnstask->fd, EV_READ | EV_TIMEOUT, OnEventResolv, dnstask);
@@ -176,17 +188,23 @@ void timerResolv(int fd, short action, void *arg) {
 
     struct Task *task = (struct Task *) arg;
     if (!task->resolv) return;
-    if (task->resolv->isNeed == 0) makeResolv(task->resolv);
     debug("LobjId:%d, Role %s, Hostname %s", task->LObjId, getRoleText(task->resolv->role), task->Record.HostName);
+
 
     if (task->Record.ResolvePeriod) {
         tv.tv_sec = task->Record.ResolvePeriod;
         tv.tv_usec = 0;
         event_assign(&task->resolv->timer, base, -1, 0, timerResolv, task);
         evtimer_add(&task->resolv->timer, &tv);
+    } else if (task->resolv->role == DNS_GETNS) {
+        tv.tv_sec = 86400;
+        tv.tv_usec = 0;
+        event_assign(&task->resolv->timer, base, -1, 0, timerResolv, task);
+        evtimer_add(&task->resolv->timer, &tv);
     }
-}
+    if (task->resolv->isNeed == 0) makeResolv(task->resolv);
 
+}
 
 static void timerMain(int fd, short action, void *arg) {
     struct event *ev = (struct event *) arg;
