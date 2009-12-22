@@ -5,8 +5,8 @@ struct timeval tv;
 aes_context ctx;
 char IV[16];
 struct event_base *mainBase = 0L;
-char *Buffer = NULL;
-u_int BufferLen = 0;
+static char *Buffer = NULL;
+static u_int BufferLen = 0;
 
 void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
     if (what & BEV_EVENT_CONNECTED) return;
@@ -14,7 +14,9 @@ void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
 }
 
 void OnBufferedWrite(struct bufferevent *bev, void *arg) {
-    openSession((Server *) arg, EV_WRITE);
+    if (((Server *) arg)->poll->status != STATE_CONNECTED) {
+        openSession((Server *) arg, EV_WRITE);
+    }
 }
 
 void OnBufferedRead(struct bufferevent *bev, void *arg) {
@@ -28,48 +30,72 @@ void OnBufferedRead(struct bufferevent *bev, void *arg) {
 void openSession(Server *pServer, short action) {
     struct Poll *poll = pServer->poll;
 
-    struct evbuffer *buffer = bufferevent_get_input(poll->bev);
-    u_char *data = EVBUFFER_DATA(buffer);
-    u_int len = evbuffer_get_length(buffer);
+    struct evbuffer *In = bufferevent_get_input(poll->bev);
+    struct evbuffer *Out = bufferevent_get_output(poll->bev);
+    u_char *data = EVBUFFER_DATA(In);
+    u_int len = evbuffer_get_length(In);
+/*
+    printf("client.c %s:%d -> %s %s\n", pServer->host, pServer->port, getActionText(action), getStatusText(poll->status));
+*/
     debug("%s:%d -> %s %s", pServer->host, pServer->port, getActionText(action), getStatusText(poll->status));
-    if (poll->status == STATE_QUIT) {
-        closeConnection(pServer, FALSE);
-        return;
-    }
 
-    if (action & EV_READ) {
+    /*
+        if (poll->status == STATE_QUIT) {
+            closeConnection(pServer, FALSE);
+            return;
+        }
+     */
+/*
+    if (len) {
+        printf("Client\n---------------------------\n");
+        hexPrint(data, len);
+        printf("--------------------------------\n\n\n");
+    }
+*/
+
+    if (action == EV_READ) {
         genSharedKey(pServer, (u_char *) data);
         poll->status = STATE_SESSION;
-        bufferevent_enable(poll->bev, EV_WRITE);
+/*
+        len = 32;
+*/
+        bufferevent_enable(pServer->poll->bev, EV_WRITE);
 
-    }
-
-    if (action & EV_WRITE) {
+    } else if (action == EV_WRITE) {
         switch (poll->status) {
             case STATE_CONNECTING:
-                //   poll->status == STATE_CONNECTED;
-                write(bufferevent_getfd(poll->bev), genPublicKey(pServer), 32);
-                bufferevent_enable(poll->bev, EV_READ);
+                evbuffer_add(Out, genPublicKey(pServer), 32);
+                bufferevent_enable(pServer->poll->bev, EV_READ);
+                bufferevent_disable(pServer->poll->bev, EV_WRITE);
+
                 break;
             case STATE_SESSION:
                 aes_set_key(&ctx, pServer->key.shared, 128);
+/*
+                printf("Client PublicShared\n---------------------------\n");
+                hexPrint(pServer->key.public, 16);
+                hexPrint(pServer->key.shared, 16);
+                printf("--------------------------------\n\n\n");
+*/
+
                 BufferLen = aes_cbc_encrypt(&ctx, pServer->key.shared + 16, (u_char*) & pServer->session, (u_char *) Buffer, sizeof (struct st_session));
-                write(bufferevent_getfd(poll->bev), Buffer, BufferLen);
+                evbuffer_add(Out, Buffer, BufferLen);
                 poll->status = STATE_CONNECTED;
-                bufferevent_enable(poll->bev, EV_READ | EV_PERSIST);
+                bufferevent_enable(pServer->poll->bev, EV_READ | EV_PERSIST);
                 if (pServer->flagRetriveConfig) LoadTask(pServer);
                 if (pServer->flagSendReportError) SendReportError(pServer);
                 if (pServer->flagSendReport) SendReport(pServer);
                 break;
         }
+
     }
 
     if (len > 0) {
-        evbuffer_drain(buffer, EVBUFFER_LENGTH(buffer));
+        evbuffer_drain(In, len);
     }
 }
 
-void InitConnectTo(Server *pServer) {
+void runRetrieveTask(Server *pServer) {
 
     struct sockaddr_in sa;
 
@@ -83,6 +109,7 @@ void InitConnectTo(Server *pServer) {
     debug("%s:%d", pServer->host, pServer->port);
     pServer->poll->status = STATE_CONNECTING;
     pServer->poll->type = MODE_SERVER;
+
 
 
     pServer->poll->bev = bufferevent_socket_new(mainBase, -1, BEV_OPT_CLOSE_ON_FREE);
@@ -109,7 +136,7 @@ void timerRetrieveTask(int fd, short action, void *arg) {
     debug("%s:%d,%d -> %s  %s", pServer->host, pServer->port, (int) pServer->periodRetrieve, getActionText(action), getStatusText(pServer->poll->status));
     pServer->flagRetriveConfig = 1;
     if (pServer->poll->status == STATE_DISCONNECTED) {
-        InitConnectTo(pServer);
+        runRetrieveTask(pServer);
     } else if (pServer->poll->status == STATE_CONNECTED) {
         LoadTask(pServer);
     }
@@ -137,7 +164,7 @@ void timerSendReportError(int fd, short action, void *arg) {
         pServer->flagSendReportError = 1;
 
         if (pServer->poll->status == STATE_DISCONNECTED) {
-            InitConnectTo(pServer);
+            runRetrieveTask(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
             SendReportError(pServer);
         }
@@ -163,7 +190,7 @@ void timerSendReport(int fd, short action, void *arg) {
         pServer->flagSendReport = 1;
 
         if (pServer->poll->status == STATE_DISCONNECTED) {
-            InitConnectTo(pServer);
+            runRetrieveTask(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
             SendReport(pServer);
         }
@@ -189,7 +216,7 @@ int main(int argc, char **argv) {
 
     initMainVars();
     Server *pServer;
-    int ServerId = 0;
+    int skip = 0;
     timerclear(&tv);
     // возможно лучше проверять не сдох ли fd
     struct sigaction IgnoreYourSignal;
@@ -217,12 +244,12 @@ int main(int argc, char **argv) {
     evthread_make_base_notifiable(mainBase);
 
     initPtr();
-    for (ServerId = 0;; ServerId++) {
+    while (1) {
         pServer = getNulledMemory(sizeof (*pServer));
         pServer->poll = getNulledMemory(sizeof (struct Poll));
-        loadServerFromConfiguration(pServer, ServerId);
+        loadServerFromConfiguration(pServer, skip++);
 
-        if (!pServer->port or !pServer->host) {
+        if (!pServer->port) {
             free(pServer->poll);
             free(pServer);
             break;
@@ -231,6 +258,10 @@ int main(int argc, char **argv) {
             if (pServer->isDC) {
                 evtimer_set(&pServer->evConfig, timerRetrieveTask, pServer);
                 evtimer_add(&pServer->evConfig, &tv);
+            }
+
+            if (pServer->isVerifer) {
+                initVerifer();
             }
 
             tv.tv_sec = pServer->periodReportError;
@@ -243,7 +274,7 @@ int main(int argc, char **argv) {
         }
         initReport(pServer);
     }
-    if (ServerId == 0) {
+    if (skip == 0) {
         printf(cRED"ERROR: incorect config file\n"cEND);
         printf(cGREEN"\tDescription:"cEND""cBLUE" nil server loaded\n\n"cEND);
         exit(FALSE);
