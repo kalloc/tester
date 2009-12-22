@@ -38,6 +38,7 @@
 
 
 #include <event2/event.h>
+#include <event2/listener.h>
 #include <event2/event_struct.h>
 #include <event2/event_compat.h>
 #include <event2/bufferevent.h>
@@ -145,7 +146,7 @@
  *
  */
 enum {
-    MODE_SERVER, MODE_CONFIG
+    MODE_SERVER, MODE_CONFIG,MODE_VERIFER
 };
 
 enum MODULE_TYPE {
@@ -348,6 +349,7 @@ typedef struct st_server {
 
     unsigned isSC : 1;
     unsigned isDC : 1;
+    unsigned isVerifer : 1;
 
     time_t periodRetrieve;
     time_t periodReport;
@@ -385,8 +387,9 @@ typedef struct st_config {
     } lua;
     char *log;
     Server *pServerSC;
+    Server *pVerifer;
+    Server *pVeriferDC;
     size_t maxInput;
-
     time_t timeout;
     time_t TimeStabilization;
     time_t minRecheckPeriod;
@@ -453,7 +456,7 @@ struct Task {
 
 //main
 void openSession(Server *, short);
-void InitConnectTo(Server *);
+void runRetrieveTask(Server *);
 void readFromServer(int, short, void *);
 
 //Tools
