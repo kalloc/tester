@@ -1,3 +1,4 @@
+<config>
 <!-- 
     maxread - максимальный допустимый размер для считывания
     path - путь к луа скриптам 
@@ -13,7 +14,9 @@
     log="log/%d.%02d.%02d_%02d.%02d.log"
     minrecheck="10"
     minperiod="60"
+    module="icmp,lookup,lua,tcp"
 />
+
 
 <!-- 
     periodReport - период отправки отчетов
@@ -22,20 +25,33 @@
     type - data: ему отправляются отчеты только о тех задачах таски на которые он присылал 
 -->
 
+<servers>
 <server
     timeout="4"   
     periodReport="5" 
     periodReportError="1"  
     periodRetrieve="60" 
     host="85.12.37.30" 
+    verifer="1"
     port="7132" 
     type="data"
     key="It's a fracking tester's dAta" 
 />
+
+<server
+    timeout="4"   
+    periodReport="5" 
+    periodReportError="1"  
+    port="7133" 
+    type="verifer"
+    key="It's a fracking tester's dAta" 
+/>
+
+
 <!-- 
     type - storage: ему отправляются все отчеты, и таски от него не принимаются 
 -->
-<server1
+<server
     timeout="2"   
     periodReport="300" 
     type="storage"
@@ -44,3 +60,5 @@
     port="7131" 
     key="It's a fracking tester's dAta" 
 />
+</servers>
+</config>
