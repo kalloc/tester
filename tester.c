@@ -6,6 +6,13 @@ static void *rootForId = NULL;
 struct DNSTask *dnstask;
 struct Task *task, *ptask;
 char *ptr;
+int isNewConfig = 0;
+int isNewTimer = 0;
+int isNewResolv = 0;
+
+static int main() {
+    
+}
 
 int compareId(const void *left, const void *right) {
     if (((struct Task *) left)->LObjId > ((struct Task *) right)->LObjId) return 1;
@@ -28,12 +35,13 @@ struct Task * searchTask(int LObjId, short flag) {
 };
 
 void deleteTask(struct Task *task) {
-    if (task->LObjId) {
+    if (task->LObjId  and task->isSub == 0) {
         tdelete((void *) task, &rootForId, compareId);
     }
     if (task->ptr and task->isSub == 0) {
 
         if (task->Record.ModType != MODULE_DNS and((struct struct_LuaTask *) task->ptr)->ptr) {
+            ((struct struct_LuaTask *) task->ptr)->state = 0;
             free(((struct struct_LuaTask *) task->ptr)->ptr);
         }
         free(task->ptr);
@@ -48,36 +56,32 @@ void deleteTask(struct Task *task) {
         free(task->resolv);
     }
     free(task);
-    task = 0;
+
 }
 
 
 #define addSubTaskResolv(method) \
-        if (Record->ResolvePeriod) {\
+   if (isNewResolv) {\
+        if (Record->ResolvePeriod or method != DNS_RESOLV) {\
             dnstask = getNulledMemory(sizeof (*dnstask)); \
             dnstask->task = task; \
             task->resolv = dnstask; \
             dnstask->role = method; \
-            tv.tv_sec = 1; \
+            tv.tv_usec = tv.tv_sec = 0; \
             event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
             evtimer_add(&dnstask->timer, &tv); \
-        } else if(task->isHostAsIp == 1 and method != DNS_RESOLV) {\
-            dnstask = getNulledMemory(sizeof (*dnstask)); \
-            dnstask->task = task; \
-            task->resolv = dnstask; \
-            dnstask->role = method; \
-            tv.tv_sec = 1; \
-            event_assign(&dnstask->timer, getResolvBase(), -1, 0, timerResolv, task);\
-            evtimer_add(&dnstask->timer, &tv); \
-        }
+        }\
+    }
 
 
 #define addTimer(callback,base) \
+   if (isNewTimer) {\
         timerclear(&tv);\
         tv.tv_sec = Record->NextCheckDt - pServer->timeOfLastUpdate;\
         event_assign(&task->time_ev, base?base:mainBase, -1, 0, callback, task);\
         evtimer_add(&task->time_ev, &tv);\
-        task->timeShift=newShift;
+        task->timeShift=newShift;\
+   }
 
 /*
             tv.tv_usec=0;\
@@ -88,12 +92,12 @@ void deleteTask(struct Task *task) {
             evtimer_add(&task->time_ev, &tv);\
  */
 
-#define modifyCallbackTimer(callback,base) \
+#define modifyCallbackTimer(callback) \
             debug("Lobj %d NewRemainder = %d, OldRemainder = %d, prevNextCheckDt = %d, NextCheckDt = %d", Record->LObjId, newShift, task->timeShift, task->Record.NextCheckDt, Record->NextCheckDt);\
             if (newShift != task->timeShift and task->newTimer == 0 and task->isShiftActive == 0) {\
                 if ((task->Record.NextCheckDt - pServer->timeOfLastUpdate) > config.minRecheckPeriod and (Record->NextCheckDt - pServer->timeOfLastUpdate) > config.minRecheckPeriod ) {\
                     evtimer_del(&task->time_ev);\
-                    addTimer(callback,base);\
+                    isNewTimer = 1;\
                 } else {\
                     task->newTimer = (Record->CheckPeriod - (task->timeShift - newShift)) % Record->CheckPeriod;\
                     if (task->newTimer <= config.minRecheckPeriod) {\
@@ -110,17 +114,18 @@ void deleteTask(struct Task *task) {
         if (task->Record.ModType != Record->ModType or task->Record.ModType != Record->ModType or strcmp(Record->HostName,task->Record.HostName)) {\
             task->Record.CheckPeriod = 0;\
             setEnd(task);\
-            raise(SIGTRAP);\
             return;\
         }
 
 void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift) {
+    isNewTimer = 0;
+    isNewResolv = 0;
+
     task = createTask(Record->LObjId);
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerTCPTask,getTCPBase());
-
+        modifyCallbackTimer(timerTCPTask);
         debug("REPLACE TCP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
 
     } else {
@@ -128,45 +133,62 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addTCPReport;
-        addTimer(timerTCPTask,getTCPBase());
-        addSubTaskResolv(DNS_RESOLV);
-
+        isNewTimer = 1;
+        isNewResolv = 1;
         debug("NEW TCP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
 
     }
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
     memcpy(&((task)->Record), Record, sizeof (*Record));
+
+    addSubTaskResolv(DNS_RESOLV);
+    addTimer(timerTCPTask, getTCPBase());
 };
 
 void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift) {
+    isNewTimer = 0;
+    isNewResolv = 0;
+
     task = createTask(Record->LObjId);
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerICMPTask,getICMPBase());
+        modifyCallbackTimer(timerICMPTask);
         debug("REPLACE ICMP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
     } else {
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addICMPReport;
-        addTimer(timerICMPTask,getICMPBase());
-        addSubTaskResolv(DNS_RESOLV);
+        isNewTimer = 1;
+        isNewResolv = 1;
         debug("NEW ICMP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
     }
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
     memcpy(&((task)->Record), Record, sizeof (*Record));
-};
+
+
+    addSubTaskResolv(DNS_RESOLV);
+    addTimer(timerICMPTask, getICMPBase());
+
+}
 
 void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, char *data) {
+    isNewConfig = 0;
+    isNewTimer = 0;
+    isNewResolv = 0;
+
     task = createTask(Record->LObjId);
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerLuaTask,getLuaBase(Record->ModType));
+        modifyCallbackTimer(timerLuaTask);
         debug("REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, config);
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(((struct struct_LuaTask *) task->ptr)->ptr);
             ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
+            isNewConfig = 1;
+        } else if (memcmp(data, ((struct struct_LuaTask *) task->ptr)->ptr, Record->ConfigLen)) {
+            isNewConfig = 1;
         }
     } else {
         task->pServer = pServer;
@@ -175,26 +197,32 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
 
         task->ptr = getNulledMemory(sizeof (struct struct_LuaTask));
         ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
-
-        addTimer(timerLuaTask,getLuaBase(Record->ModType));
-        addSubTaskResolv(DNS_RESOLV);
+        isNewTimer = 1;
+        isNewResolv = 1;
+        isNewConfig = 1;
         debug("NEW LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
     }
 
     memcpy(&((task)->Record), Record, sizeof (*Record));
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
-    memcpy(((struct struct_LuaTask *) task->ptr)->ptr, data, Record->ConfigLen);
 
+    if (isNewConfig) memcpy(((struct struct_LuaTask *) task->ptr)->ptr, data, Record->ConfigLen);
+
+    addSubTaskResolv(DNS_RESOLV);
+    addTimer(timerLuaTask, getLuaBase(Record->ModType));
 }
 
 void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, char *data) {
     u_short countByte = 0, countCountByte = 0;
+    isNewConfig = 0;
+    isNewTimer = 0;
+    isNewResolv = 0;
+
     task = createTask(Record->LObjId);
-    int isNewConfig = 0;
 
     if (task->Record.LObjId) {
         removeifChangeTask();
-        modifyCallbackTimer(timerDNSTask,getDNSBase());
+        modifyCallbackTimer(timerDNSTask);
         debug("REPLACE DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
         if (Record->ConfigLen != task->Record.ConfigLen) {
             free(task->ptr);
@@ -204,17 +232,14 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
             isNewConfig = 1;
         }
 
-        if (isNewConfig)
-            if (inet_addr(Record->HostName) != -1)
-                task->isHostAsIp = 1;
-            else
-                task->isHostAsIp = 0;
+        if (isNewConfig) {
+            if (inet_addr(Record->HostName) != -1) task->isHostAsIp = 1;
+            else task->isHostAsIp = 0;
+        }
 
     } else {
-        if (inet_addr(Record->HostName) != -1)
-            task->isHostAsIp = 1;
-        else
-            task->isHostAsIp = 0;
+        if (inet_addr(Record->HostName) != -1) task->isHostAsIp = 1;
+        else task->isHostAsIp = 0;
 
         task->pServer = pServer;
         dnstask = getNulledMemory(sizeof (*dnstask));
@@ -223,10 +248,10 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->poll = dnstask;
         task->ptr = getNulledMemory(Record->ConfigLen + 1);
         task->callback = addDNSReport;
-        addTimer(timerDNSTask,getDNSBase());
-        addSubTaskResolv(DNS_GETNS);
         debug("NEW DNS -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
         isNewConfig = 1;
+        isNewResolv = 1;
+        isNewTimer = 1;
     }
     memcpy(&((task)->Record), Record, sizeof (*Record));
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
@@ -237,7 +262,7 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         dnstask = (struct DNSTask *) task->poll;
         if (ptr[1] != 0x33) {
             setEnd(task);
-            return;
+            goto end;
         }
         ptr += 2;
 
@@ -258,7 +283,7 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
             ptr += 5;
         } else {
             setEnd(task);
-            return;
+            goto end;
         }
 
         countCountByte = ptr[0] - 0x30;
@@ -280,6 +305,10 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
 
         dnstask->taskPattern = ptr;
     }
+
+end:
+    addSubTaskResolv(DNS_GETNS);
+    addTimer(timerDNSTask, getDNSBase());
     /*
                     11 a
                     14 7200
