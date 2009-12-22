@@ -100,12 +100,16 @@ void timerTCPTask(int fd, short action, void *arg) {
 
     struct Task *task = (struct Task *) arg;
     debug("%d id:%d %s", action, task->LObjId, getStatusText(task->code));
-    if (!task->Record.IP || task->isEnd == TRUE) return;
+    if (task->isEnd == TRUE) {
+        evtimer_del(&task->time_ev);
+        deleteTask(task);
+        return;
+    }
     if (task->code) closeTCPConnection(task);
 
 
     setNextTimer(task);
-    openTCPConnection(task);
+    if (task->Record.IP) openTCPConnection(task);
 
 
 }
@@ -134,7 +138,6 @@ void initTCPTester() {
     pthread_t threads;
     pthread_create(&threads, NULL, initThread, NULL);
 }
-
 
 struct event_base *getTCPBase() {
     return base;

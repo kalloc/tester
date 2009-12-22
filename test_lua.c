@@ -3,9 +3,6 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <iconv.h>
-//static struct event_base *base = 0L;
-
-
 
 #define size_t u32
 #define LuaNet "api"
@@ -249,13 +246,10 @@ void closeLuaConnection(struct Task *task) {
     } else if (task->code != STATE_DONE and task->code != STATE_TIMEOUT) {
         task->code = STATE_ERROR;
     }
-#ifndef TESTER
+
     if (task->callback) {
         task->callback(task);
     }
-#else
-    incStat(task->Record.ModType, task->code);
-#endif
 
 
     if (task->isRead) {
@@ -308,9 +302,7 @@ void closeLuaConnection(struct Task *task) {
     if (task->isEnd) {
         //таск больше не нужен
         evtimer_del(&task->time_ev);
-        //printf("deleteTask(task) = %p\n", task);
         deleteTask(task);
-        task = 0;
 
     }
 
@@ -387,11 +379,11 @@ void OnReadLuaTask(struct bufferevent *bev, void *arg) {
         task->readedSize = len;
 
         timerclear(&tv);
-#define MIN_TTL 200
+#define MIN_TTL 500
         if (task->Record.TimeOut > MIN_TTL) {
             tv.tv_usec = MIN_TTL * 1000;
         } else {
-            tv.tv_usec = task->Record.TimeOut * 1000;
+            tv.tv_usec = task->Record.TimeOut * 1000 / 2;
         }
         bufferevent_enable(poll->bev, EV_READ);
         evtimer_add(&task->read, &tv);
@@ -696,6 +688,7 @@ static int LuaNetConnect(lua_State * L) {
         subtask->ptr = task->ptr;
         subtask->isSub = 1;
         subtask->isEnd = 1;
+        subtask->LObjId = task->LObjId;
 
         LuaNetListEntryPtr = getNulledMemory(sizeof (struct LuaNetListEntry));
         LuaNetListEntryPtr->task = subtask;
@@ -714,13 +707,20 @@ static int LuaNetConnect(lua_State * L) {
         bzero(&sa.sin_zero, 8);
 
 
-
-
         poll->bev = bufferevent_socket_new(luaTask->luaModule->base, -1, BEV_OPT_CLOSE_ON_FREE);
         bufferevent_socket_connect(poll->bev, (struct sockaddr *) & sa, sizeof (sa));
         bufferevent_setcb(poll->bev, OnReadLuaTask, OnWriteLuaSubTask, OnErrorLuaSubTask, subtask);
         bufferevent_enable(poll->bev, EV_WRITE | EV_TIMEOUT);
 
+/*
+        BIO *fd_bio = BIO_new(BIO_s_socket());
+        BIO *cipher_bio = BIO_new(BIO_f_cipher());
+
+        BIO_set_fd(fd_bio, bufferevent_getfd(poll->bev), ...);
+        BIO_set_cipher(cipher_bio, ...);
+        BIO_push(cipher_bio, fd_bio);
+
+*/
 
         MSToTimeval(task->Record.TimeOut, tv);
 
@@ -919,8 +919,9 @@ void openLuaConnection(struct Task * task) {
         task = 0;
         return;
     }
-    luaTask->luaModule = luaModule;
 
+    luaTask->luaModule = luaModule;
+    luaTask->state = NULL;
     struct sockaddr_in sa;
 #ifdef REPORT_TIMEOUT
     task->Record.Port = 12341;
@@ -938,9 +939,10 @@ void openLuaConnection(struct Task * task) {
     sa.sin_port = htons(task->Record.Port);
     bzero(&sa.sin_zero, 8);
 
-
+    //    int val = 5000;
     poll->bev = bufferevent_socket_new(luaTask->luaModule->base, -1, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_socket_connect(poll->bev, (struct sockaddr *) & sa, sizeof (sa));
+    //    setsockopt(bufferevent_getfd(poll->bev), SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) ;
     bufferevent_setcb(poll->bev, OnReadLuaTask, OnWriteLuaTask, OnErrorLuaTask, task);
     bufferevent_enable(poll->bev, EV_WRITE | EV_TIMEOUT);
 
@@ -1083,12 +1085,15 @@ void RunLuaTask(struct Task * task) {
 void timerLuaTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
     debug("id:%d %s", task->LObjId, getStatusText(task->code));
-    if (!task->Record.IP || task->isEnd == TRUE) return;
+    if (task->isEnd == TRUE) {
+        evtimer_del(&task->time_ev);
+        deleteTask(task);
+        return;
+    }
     if (task->code) closeLuaConnection(task);
 
     setNextTimer(task);
-
-    openLuaConnection(task);
+    if (task->Record.IP) openLuaConnection(task);
 }
 
 void initLUATester() {

@@ -4,6 +4,16 @@ struct timeval tv;
 static struct event_base *base;
 struct DNSTask *dnstask;
 
+static inline char * getPTR(char *host) {
+    char arpa[100];
+    u_char *ip;
+    in_addr_t in = inet_addr((const char *) host);
+    if (in == -1) return host;
+    ip = (char *) & in;
+    snprintf(arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
+    return arpa;
+}
+
 inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *dnstask, const unsigned char *aptr, const unsigned char *abuf, int alen) {
 
     struct Task *task = dnstask->task;
@@ -11,6 +21,10 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
     int type, dnsclass, ttl, dlen, status;
     long len;
     char addr[46];
+
+    /*
+    if (task->LObjId == 1148) raise(SIGTRAP);
+     */
 
     union {
         unsigned char * as_uchar;
@@ -37,9 +51,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
         return NULL;
     }
     ares_free_string(name.as_char);
-    /*
-        if (task->LObjId == 1151) raise(SIGTRAP);
-     */
+
     switch (type) {
         case T_CNAME:
         case T_MB:
@@ -52,11 +64,11 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
 
             status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS) {
+                printf("error T_%s compare, %s andd ttl %d error - %d\n", type_name(type), dnstask->taskPattern, dnstask->taskTTL, status);
                 return NULL;
             }
-
-            printf("compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
-            if (!memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen) and ttl == dnstask->taskTTL) {
+            printf("T_%s compare, %s:%08x on %s and ttl %d on %d\n", type_name(type), dnstask->taskPattern, dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
+            if ((dnstask->taskPattern[0] == 0 or !memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
             ares_free_string(name.as_char);
@@ -102,7 +114,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
             }
 
             printf("T_MX compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
-            if (!memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen) and ttl == dnstask->taskTTL) {
+            if ((dnstask->taskPattern[0] = 0 or !memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
             ares_free_string(name.as_char);
@@ -145,7 +157,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
                     return NULL;
 
                 //printf("\t%.*s", (int) len, p + 1);
-                printf("compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, p + 1, ttl, dnstask->taskTTL);
+                printf("T_TXT compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, p + 1, ttl, dnstask->taskTTL);
                 if (!memcmp(p + 1, dnstask->taskPattern, dnstask->taskPatternLen) and ttl == dnstask->taskTTL) {
                     dnstask->task->code = STATE_DONE;
                 }
@@ -157,9 +169,12 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
         case T_A:
             /* The RR data is a four-byte Internet address. */
             inet_ntop(AF_INET, aptr, addr, sizeof (addr));
-            printf("T_A compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, addr, ttl, dnstask->taskTTL);
+            printf("T_A compare %s on %s (size %d) and ttl %d on %d\n", dnstask->taskPattern, addr, dnstask->taskPatternLen, ttl, dnstask->taskTTL);
+            /*
+                        if (dnstask->task->LObjId == 1056) raise(SIGSEGV);
+             */
 
-            if (dlen == 4 and !memcmp(addr, dnstask->taskPattern, dnstask->taskPatternLen) and ttl == dnstask->taskTTL) {
+            if (dlen == 4 and(dnstask->taskPattern[0] = 0 or !memcmp(addr, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
             break;
@@ -242,6 +257,9 @@ void OnEventDNSTask(int fd, short event, void *arg) {
     debug("event:%s, LobjId:%d, Hostname %s", getActionText(event), dnstask->task->LObjId, dnstask->task->Record.HostName);
     if (event & EV_READ) {
         ares_process_fd(dnstask->channel, fd, ARES_SOCKET_BAD);
+    } else if (event & EV_TIMEOUT) {
+        dnstask->task->code = STATE_TIMEOUT;
+        dnstask->task->callback(dnstask->task);
     }
 
     if (!dnstask->isNeed) {
@@ -287,15 +305,15 @@ void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned char *a
     struct hostent *he;
     struct addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;
+
+    dnstask->task->code = STATE_ERROR;
+
     switch (dnstask->role) {
         case DNS_TASK:
             for (i = 0; i < ancount; i++) {
-                printf("try %d ", ancount);
+                printf("try %d %d ", dnstask->task->LObjId, ancount);
                 aptr = CheckPatternAfterParseAnswer(dnstask, aptr, abuf, alen);
                 if (aptr == NULL) break;
-            }
-            if (dnstask->task->code != STATE_DONE) {
-                dnstask->task->code = STATE_ERROR;
             }
             dnstask->task->callback(dnstask->task);
 
@@ -343,16 +361,19 @@ void timerDNSTask(int fd, short action, void *arg) {
     struct Task *task = arg;
     struct DNSTask *dnstask = (struct DNSTask *) task->poll;
 
-    debug("LobjId:%d, Role %s, Hostname %s", task->LObjId, getRoleText(dnstask->role), task->Record.HostName);
-
     /*
         if (task->LObjId == 1151) raise(SIGTRAP);
      */
 
-    if (task->isEnd) return;
+    if (task->isEnd) {
+        evtimer_del(&task->time_ev);
+        deleteTask(task);
+        return;
+    }
     setNextTimer(task);
 
     if (task->resolv and task->resolv->NSIP) {
+        debug("LobjId:%d, Role %s, Hostname %s", task->LObjId, getRoleText(dnstask->role), task->Record.HostName);
         makeDNSTask(dnstask);
     }
 
@@ -382,7 +403,6 @@ void initDNSTester() {
     pthread_t threads;
     pthread_create(&threads, NULL, (void*) initThread, NULL);
 }
-
 
 struct event_base *getDNSBase() {
     return base;

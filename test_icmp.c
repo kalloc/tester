@@ -184,40 +184,38 @@ void timerICMPTask(int fd, short action, void *arg) {
     struct Task *task = (struct Task *) arg;
 
     debug("id %d, Module %s for %s [%s:%d]", task->Record.LObjId, getModuleText(task->Record.ModType), task->Record.HostName, ipString(task->Record.IP), task->Record.Port);
-    if (!task->Record.IP) return;
-
     if (task->isEnd == TRUE) {
         OnDisposeICMPTask(task);
         return;
     }
+    if (task->Record.IP) {
+        if (IcmpPoll.write_fd == 0) {
+            IcmpPoll.write_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+            evutil_make_socket_nonblocking(IcmpPoll.write_fd);
+            event_set(&IcmpPoll.write_ev, IcmpPoll.write_fd, EV_WRITE | EV_PERSIST, OnWriteICMPTask, NULL);
+            event_add(&IcmpPoll.write_ev, NULL);
+        }
 
-    if (IcmpPoll.write_fd == 0) {
-        IcmpPoll.write_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-        evutil_make_socket_nonblocking(IcmpPoll.write_fd);
-        event_set(&IcmpPoll.write_ev, IcmpPoll.write_fd, EV_WRITE | EV_PERSIST, OnWriteICMPTask, NULL);
-        event_add(&IcmpPoll.write_ev, NULL);
+
+        IcmpEntryPtr = getNulledMemory(sizeof (struct IcmpListEntry)); /* Insert at the head. */
+        IcmpEntryPtr->task = task;
+        LIST_INSERT_HEAD(&IcmpWriteHead, IcmpEntryPtr, entries);
+        task->code = STATE_TIMEOUT;
+        if (task->Record.TimeOut > 1000) {
+            tv.tv_sec = task->Record.TimeOut / 1000 / 2;
+            tv.tv_usec = (task->Record.TimeOut % 1000)*1000;
+        } else {
+            tv.tv_usec = task->Record.TimeOut * 1000 / 2;
+            tv.tv_sec = 0;
+        }
+
+
+        event_assign(&task->read, base, -1, 0, timerTimeoutICMPTask, task);
+        evtimer_add(&task->read, &tv);
     }
-
-
-    IcmpEntryPtr = getNulledMemory(sizeof (struct IcmpListEntry)); /* Insert at the head. */
-    IcmpEntryPtr->task = task;
-    LIST_INSERT_HEAD(&IcmpWriteHead, IcmpEntryPtr, entries);
-    task->code = STATE_TIMEOUT;
-
 
     setNextTimer(task);
 
-    if (task->Record.TimeOut > 1000) {
-        tv.tv_sec = task->Record.TimeOut / 1000 / 2;
-        tv.tv_usec = (task->Record.TimeOut % 1000)*1000;
-    } else {
-        tv.tv_usec = task->Record.TimeOut * 1000 / 2;
-        tv.tv_sec = 0;
-    }
-
-
-    event_assign(&task->read, base, -1, 0, timerTimeoutICMPTask, task);
-    evtimer_add(&task->read, &tv);
 }
 
 void OnDisposeICMPTask(struct Task * task) {
@@ -254,7 +252,6 @@ void initICMPTester() {
     LIST_INIT(&IcmpWriteHead);
     pthread_create(&threads, NULL, (void*) initICMPThread, NULL);
 }
-
 
 struct event_base *getICMPBase() {
     return base;
