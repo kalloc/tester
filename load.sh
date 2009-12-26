@@ -1,6 +1,6 @@
 #!/bin/bash
 
-servers="root@solo1 root@solo2"
+servers="root@solo1"
 function load() {
     ssh $1 'rm -f /opt/tester/tester'
     echo Load binaries to $(echo $1 | awk -F@ '{print $2}')

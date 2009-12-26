@@ -4,6 +4,8 @@ extern struct event_base *mainBase;
 struct timeval tv;
 static void *rootForId = NULL;
 struct DNSTask *dnstask;
+struct struct_LuaTask *luaTask;
+
 struct Task *task, *ptask;
 char *ptr;
 int isNewConfig = 0;
@@ -11,7 +13,7 @@ int isNewTimer = 0;
 int isNewResolv = 0;
 
 static int main() {
-    
+
 }
 
 int compareId(const void *left, const void *right) {
@@ -35,7 +37,7 @@ struct Task * searchTask(int LObjId, short flag) {
 };
 
 void deleteTask(struct Task *task) {
-    if (task->LObjId  and task->isSub == 0) {
+    if (task->LObjId and task->isSub == 0) {
         tdelete((void *) task, &rootForId, compareId);
     }
     if (task->ptr and task->isSub == 0) {
@@ -176,14 +178,13 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
     isNewConfig = 0;
     isNewTimer = 0;
     isNewResolv = 0;
-
     task = createTask(Record->LObjId);
-
     if (task->Record.LObjId) {
         removeifChangeTask();
         modifyCallbackTimer(timerLuaTask);
-        debug("REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, config);
+        debug("TRY TO REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, config);
         if (Record->ConfigLen != task->Record.ConfigLen) {
+            debug("REPLACE LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, config);
             free(((struct struct_LuaTask *) task->ptr)->ptr);
             ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
             isNewConfig = 1;
@@ -202,11 +203,11 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         isNewConfig = 1;
         debug("NEW LUA -> id %d, Module %s for %s [%s:%d] [config %s]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port, data);
     }
+    luaTask = (struct struct_LuaTask *) task->ptr;
 
     memcpy(&((task)->Record), Record, sizeof (*Record));
     task->timeOfLastUpdate = task->pServer->timeOfLastUpdate;
-
-    if (isNewConfig) memcpy(((struct struct_LuaTask *) task->ptr)->ptr, data, Record->ConfigLen);
+    if (isNewConfig) memcpy(luaTask->ptr, data, Record->ConfigLen);
 
     addSubTaskResolv(DNS_RESOLV);
     addTimer(timerLuaTask, getLuaBase(Record->ModType));

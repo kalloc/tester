@@ -40,11 +40,10 @@
 
 <server
     timeout="4"   
-    periodReport="5" 
-    periodReportError="1"  
-    port="7133" 
+    port="7777" 
     type="verifer"
-    key="It's a fracking tester's dAta" 
+    key="uzh0snahvperemezhkusiadomiprocheihrenoten'yu"
+    keyRecv="F4ps#68fencvjurpwekfhhu2ldfne8n@a" 
 />
 
 

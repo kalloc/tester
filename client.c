@@ -264,13 +264,18 @@ int main(int argc, char **argv) {
                 initVerifer();
             }
 
-            tv.tv_sec = pServer->periodReportError;
-            evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
-            evtimer_add(&pServer->evReportError, &tv);
+            if(pServer->periodReportError){
+        	tv.tv_sec = pServer->periodReportError;
+        	evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
+        	evtimer_add(&pServer->evReportError, &tv);
+            }
 
-            tv.tv_sec = pServer->periodReport;
-            evtimer_set(&pServer->evReport, timerSendReport, pServer);
-            evtimer_add(&pServer->evReport, &tv);
+
+            if(pServer->periodReport){
+        	tv.tv_sec = pServer->periodReport;
+        	evtimer_set(&pServer->evReport, timerSendReport, pServer);
+        	evtimer_add(&pServer->evReport, &tv);
+    	    }
         }
         initReport(pServer);
     }

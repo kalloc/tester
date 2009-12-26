@@ -64,10 +64,10 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
 
             status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS) {
-                printf("error T_%s compare, %s andd ttl %d error - %d\n", type_name(type), dnstask->taskPattern, dnstask->taskTTL, status);
+                debug("error T_%s compare, %s andd ttl %d error - %d", type_name(type), dnstask->taskPattern, dnstask->taskTTL, status);
                 return NULL;
             }
-            printf("T_%s compare, %s:%08x on %s and ttl %d on %d\n", type_name(type), dnstask->taskPattern, dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
+            debug("T_%s compare, %s:%08x on %s and ttl %d on %d", type_name(type), dnstask->taskPattern, dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
             if ((dnstask->taskPattern[0] == 0 or !memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
@@ -80,12 +80,12 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
             len = *p;
             if (p + len + 1 > aptr + dlen)
                 return NULL;
-            printf("\t%.*s", (int) len, p + 1);
+            debug("\t%.*s", (int) len, p + 1);
             p += len + 1;
             len = *p;
             if (p + len + 1 > aptr + dlen)
                 return NULL;
-            printf("\t%.*s", (int) len, p + 1);
+            debug("\t%.*s", (int) len, p + 1);
             break;
 
         case T_MINFO:
@@ -94,13 +94,13 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
             status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS)
                 return NULL;
-            printf("\t%s.", name.as_char);
+            debug("\t%s.", name.as_char);
             ares_free_string(name.as_char);
             p += len;
             status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS)
                 return NULL;
-            printf("\t%s.", name.as_char);
+            debug("\t%s.", name.as_char);
             ares_free_string(name.as_char);
             break;
 
@@ -113,7 +113,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
                 return NULL;
             }
 
-            printf("T_MX compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
+            debug("T_MX compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, name.as_char, ttl, dnstask->taskTTL);
             if ((dnstask->taskPattern[0] = 0 or !memcmp(name.as_char, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
@@ -130,18 +130,18 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
             status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS)
                 return NULL;
-            printf("\t%s.\n", name.as_char);
+            debug("\t%s.", name.as_char);
             ares_free_string(name.as_char);
             p += len;
             status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
             if (status != ARES_SUCCESS)
                 return NULL;
-            printf("\t\t\t\t\t\t%s.\n", name.as_char);
+            debug("\t\t\t\t\t\t%s.", name.as_char);
             ares_free_string(name.as_char);
             p += len;
             if (p + 20 > aptr + dlen)
                 return NULL;
-            printf("\t\t\t\t\t\t( %lu %lu %lu %lu %lu )",
+            debug("\t\t\t\t\t\t( %lu %lu %lu %lu %lu )",
                     (unsigned long) DNS__32BIT(p), (unsigned long) DNS__32BIT(p + 4),
                     (unsigned long) DNS__32BIT(p + 8), (unsigned long) DNS__32BIT(p + 12),
                     (unsigned long) DNS__32BIT(p + 16));
@@ -157,7 +157,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
                     return NULL;
 
                 //printf("\t%.*s", (int) len, p + 1);
-                printf("T_TXT compare %s on %s and ttl %d on %d\n", dnstask->taskPattern, p + 1, ttl, dnstask->taskTTL);
+                debug("T_TXT compare %s on %s and ttl %d on %d", dnstask->taskPattern, p + 1, ttl, dnstask->taskTTL);
                 if (!memcmp(p + 1, dnstask->taskPattern, dnstask->taskPatternLen) and ttl == dnstask->taskTTL) {
                     dnstask->task->code = STATE_DONE;
                 }
@@ -169,7 +169,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
         case T_A:
             /* The RR data is a four-byte Internet address. */
             inet_ntop(AF_INET, aptr, addr, sizeof (addr));
-            printf("T_A compare %s on %s (size %d) and ttl %d on %d\n", dnstask->taskPattern, addr, dnstask->taskPatternLen, ttl, dnstask->taskTTL);
+            debug("T_A compare %s on %s (size %d) and ttl %d on %d", dnstask->taskPattern, addr, dnstask->taskPatternLen, ttl, dnstask->taskTTL);
             /*
                         if (dnstask->task->LObjId == 1056) raise(SIGSEGV);
              */
@@ -183,7 +183,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
             /* The RR data is a 16-byte IPv6 address. */
             if (dlen != 16)
                 return NULL;
-            printf("\t%s", inet_ntop(AF_INET6, aptr, addr, sizeof (addr)));
+            debug("\t%s", inet_ntop(AF_INET6, aptr, addr, sizeof (addr)));
             break;
 
         case T_WKS:
@@ -311,7 +311,7 @@ void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned char *a
     switch (dnstask->role) {
         case DNS_TASK:
             for (i = 0; i < ancount; i++) {
-                printf("try %d %d ", dnstask->task->LObjId, ancount);
+                debug("try %d %d ", dnstask->task->LObjId, ancount);
                 aptr = CheckPatternAfterParseAnswer(dnstask, aptr, abuf, alen);
                 if (aptr == NULL) break;
             }

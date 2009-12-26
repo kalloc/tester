@@ -7,9 +7,9 @@ local id="66666666"
 
 local AllTest={
     http={
-	default={host="www.radabor.ru",port=80,id=id},
+	default={host="mycurriencies.net",port=80,id=id},
 	task={
---	    "1313get18test.php16test=1",
+--	    "1518chkwords11/111212Registration210ISO-8859-1",
 --	    "1314post18test.php16test=1",
 --	    "1317chksize18test.php147000",
 --	    "1313get11/10",
@@ -21,9 +21,9 @@ local AllTest={
     },
 
     ftp={
-	default={host=host,port=21,id=id},
+	default={host="193.233.9.194",port=21,id=id},
 	task={
---		"1314auth210solotester1812341234",
+		"1314auth1010",
 --		"1414list210solotester181234123410",
 --		"1414list2182kphoto@radabor.ru15qwert19/catalog/",
 --                "1517chkfile210solotester181234123411/14file",
@@ -39,6 +39,7 @@ local AllTest={
 	task={
 --		"1314auth220solotester@n1ck.name1812341234",
 --		"1314auth217test@masterday.ru14test"
+--		"1314auth217test@masterday.ru14test"
 	}
     },
     pop3={
@@ -52,12 +53,22 @@ local AllTest={
 --		"1718chkwords220solotester@n1ck.name1812341234220solotester@n1ck.name16Tester11115Server"
 	}
     },
-    telnet={
+    telznet={
 	default={host="62.152.37.165",port=23,id=id},
 	task={
-	    "1314auth18testsolo19kjshdf8bh",
+--	    "1314auth18testsolo19kjshdf8bh",
 --	    "1413cmd18testsolo19kjshdf8bh16uptime",
-	    "1618chkwords18testsolo19kjshdf8bh16uptime11113day",
+--	    "1618chkwords18testsolo19kjshdf8bh16uptime11113day",
+--	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
+	}
+    },
+    telnet={
+	default={host="mail.ainmarh.com",port=23,id=id},
+	task={
+	    "1618chkwords210solotester181234123416uptime11113day"
+--	    "1618chkwords1010testsolo19kjshdf8bh",
+--	    "1413cmd18testsolo19kjshdf8bh16uptime",
+--	    "1618chkwords18testsolo19kjshdf8bh16uptime11113MUD",
 --	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
 	}
     },

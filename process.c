@@ -27,9 +27,6 @@ void onErrorFromServer(Server *pServer, int code) {
     debug("%s[%d] host [%s:%d]", getErrorText(code), code, pServer->host, pServer->port);
 }
 
-#define Size_Request_hdr sizeof(pReq->hdr)
-#define Size_Request_sizes sizeof(pReq->sizes)
-#define Size_Request (sizeof(struct Request)-sizeof(char *))
 
 void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     struct Poll *poll = pServer->poll;
@@ -178,6 +175,7 @@ void onLoadTask(Server *pServer) {
         newShift = Cfg_Record->NextCheckDt % Cfg_Record->CheckPeriod;
         Cfg_Record->NextCheckDt = ((tv.tv_sec / Cfg_Record->CheckPeriod) * Cfg_Record->CheckPeriod) + RemoteToLocalTime(Cfg_Record->NextCheckDt) % Cfg_Record->CheckPeriod;
         if (Cfg_Record->NextCheckDt < tv.tv_sec) Cfg_Record->NextCheckDt += Cfg_Record->CheckPeriod;
+
 
         switch (Cfg_Record->ModType) {
             case MODULE_PING:

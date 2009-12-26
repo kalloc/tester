@@ -6,7 +6,7 @@ module={
     name="HTTP",
     id=3
 }
-function tostr(arg,ret)
+local tostr = function(arg,ret)
     return arg and arg ~= '' and ret or ''
 end
 

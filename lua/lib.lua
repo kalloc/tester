@@ -45,7 +45,7 @@ function api:read (format)
 	local ret=""
 	do  ret=self.sock:receive(1) while ret do
 	    data=data..ret
-	    self.sock:settimeout(0.1)
+	    self.sock:settimeout(0.3)
 	    ret=self.sock:receive(1)
 	    end
 	end

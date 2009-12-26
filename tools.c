@@ -2,17 +2,19 @@
 #include "yxml.h"
 #include <zlib.h>
 #include <ctype.h>
-
+//#define STDOUT
 struct timeval tv;
 FILE * fp = 0;
 
 
 //Authorization
 int curve25519_donna(u8 *mypublic, const u8 *secret, const u8 *basepoint);
+
 unsigned char * genSharedKey(Server *pServer, unsigned char * hispublic) {
     curve25519_donna(pServer->key.shared, pServer->key.secret, hispublic);
     return pServer->key.shared;
 }
+
 unsigned char * genPublicKey(Server *pServer) {
     static int count = 0;
     const unsigned char basepoint[32] = {9};
@@ -45,6 +47,7 @@ static const char base64val[] = {
     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, BAD, BAD, BAD, BAD, BAD
 };
 #define DECODE64(c)  (isascii(c) ? base64val[c] : BAD)
+
 void base64_encode(char *in, int inlen, char *out, int *outlen) {
     char *save_ptr;
     save_ptr = out;
@@ -73,6 +76,7 @@ void base64_encode(char *in, int inlen, char *out, int *outlen) {
     *out = '\0';
     *outlen = ((int) out - (int) save_ptr);
 }
+
 int base64_decode(const unsigned char *in, unsigned char *out, int *outlen) {
     int len = 0;
     register unsigned char digit1, digit2, digit3, digit4;
@@ -395,8 +399,8 @@ unsigned int openConfiguration(char *filename) {
                 servers_xml = pxml;
             }
         }
-        if(!tester_xml and !servers_xml)   return FALSE;
-                
+        if (!tester_xml and !servers_xml) return FALSE;
+
         for (xml_attr = tester_xml->attrs; xml_attr; xml_attr = xml_attr->next) {
             if (!strcmp(xml_attr->name, "id")) {
                 config.testerid = atoi(xml_attr->value);
@@ -432,11 +436,11 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
     yxml_t * pxml = NULL;
     yxml_attr_t *xml_attr = NULL;
     char key[50];
-    u8 count=0;
+    u8 count = 0;
 
-    for (pxml = servers_xml->details; pxml and count <= skip; pxml = pxml->next,count++) {
+    for (pxml = servers_xml->details; pxml and count <= skip; pxml = pxml->next, count++) {
         if (!strcmp(pxml->name, "server")) {
-            if(count < skip) continue;
+            if (count < skip) continue;
             //извлекаем host и port
             for (xml_attr = pxml->attrs; xml_attr; xml_attr = xml_attr->next) {
 
@@ -446,11 +450,13 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
                 } else if (!strcmp(xml_attr->name, "port")) {
                     pServer->port = atoi(xml_attr->value);
                 } else if (!strcmp(xml_attr->name, "key")) {
-                    snprintf(pServer->session.password, 42, "%s", xml_attr->value);
+                    snprintf(pServer->session.password, 48, "%s", xml_attr->value);
+                } else if (!strcmp(xml_attr->name, "keyRecv")) {
+                    snprintf(pServer->passwordRecv, 48, "%s", xml_attr->value);
                 } else if (!strcmp(xml_attr->name, "timeout")) {
                     pServer->timeout = atoi(xml_attr->value);
                 } else if (!strcmp(xml_attr->name, "verifer")) {
-                    config.pVeriferDC=pServer;
+                    config.pVeriferDC = pServer;
                 } else if (!strcmp(xml_attr->name, "type")) {
                     if (!strcmp(xml_attr->value, "storage")) {
                         pServer->isSC = 1;
@@ -531,6 +537,9 @@ void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) 
             codefunction ? "() " : ""
             );
     fwrite(buf, 1, len, fp);
+#ifdef STDOUT
+    printf(buf);
+#endif
     va_list ap;
     va_start(ap, fmt);
     len = vsnprintf(buf, 4094, fmt, ap);
@@ -539,6 +548,9 @@ void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) 
     fwrite(buf, 1, len + 1, fp);
     fflush(fp);
     va_end(ap);
+#ifdef STDOUT
+    printf(buf);
+#endif
     free(buf);
     //    pthread_mutex_unlock(mutex);
 }

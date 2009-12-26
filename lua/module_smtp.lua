@@ -39,8 +39,8 @@ LObjId %id%
 
     net:write("EHLO solotester\n")
     
-    local ret = net:read()
-    if not ret or not ret:find("Hello solotester") then  return  net:error(ret) end
+    ret = net:read()
+    if not ret or not ret:find("^250") then  return  net:error(ret) end
 
     if ret:find("CRAM%-MD5") then
 	    --авторизовываемся по CRAM-MD5
@@ -67,7 +67,7 @@ LObjId %id%
 	    net:write(string.base64encode(argv.data[2]).."\n")
     else
         --нечем авторизовываться
-	    net:error(ret)
+	    net:error("AUTH NOT FOUND")
 	    return
     end
     ret=net:read()

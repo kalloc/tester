@@ -77,9 +77,8 @@
 
 #define OR              ||
 #define AND             &&
-#define or              ||
-#define and             &&
-
+#define or              OR
+#define and             AND
 #define cBLUE		"\e[1;34m"
 #define cYELLOW		"\e[1;33m"
 #define cGREEN		"\e[1;32m"
@@ -158,7 +157,8 @@ enum MODULE_TYPE {
     MODULE_DNS = 6, // Тестер сообщает данные dns-проверки
     MODULE_POP = 7, // Тестер сообщает данные pop3-проверки
     MODULE_TELNET = 8, // Тестер сообщает данные pop3-проверки
-    MODULE_READ_OBJECTS_CFG = 1000 // Тестер запрашивает свои рабочие данные
+    MODULE_READ_OBJECTS_CFG = 1000, // Тестер запрашивает свои рабочие данные
+    MODULE_CHECK_TASKS
 };
 
 enum {
@@ -180,6 +180,11 @@ struct nv {
     const char *name;
     int value;
 };
+
+
+#define Size_Request_hdr sizeof(pReq->hdr)
+#define Size_Request_sizes sizeof(pReq->sizes)
+#define Size_Request (sizeof(struct Request)-sizeof(char *))
 
 
 #ifdef DEBUG
@@ -248,6 +253,19 @@ struct _Tester_Cfg_Record {
     char HostName[TESTER_SQL_HOST_NAME_LEN]; // имя хоста
     u32 FoldedNext; // LObjId предыдущего хоста в folded-цепочке или 0
     u32 FoldedPrev; // LObjId следующего хоста в folded-цепочке или 0
+    u32 TimeOut;
+    u32 ConfigLen;
+};
+
+struct _Verifer_Cfg_Record {
+    u32 LObjId; // id объекта тестирования
+
+    u32 ModType; // тип модуля тестирования (пинг-порт-хттп-...)
+
+    u16 Port; // порт првоерки
+    u32 IP; // ип объекта тестирования
+    u32 NextCheckDt; // дата ближайшей проверки. unixtime utc
+    char HostName[TESTER_SQL_HOST_NAME_LEN]; // имя хоста
     u32 TimeOut;
     u32 ConfigLen;
 };
@@ -340,6 +358,7 @@ typedef struct st_server {
     u32 timeOfLastUpdate;
 
     struct st_session session;
+    char passwordRecv[48]; // текстовый нуль-терминированный пароль сессии для проверячного тестера
 
     struct {
         u32 counterReport;
