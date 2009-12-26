@@ -241,7 +241,7 @@ void closeLuaConnection(struct Task *task) {
             task->lua = 0;
      */
 
-    if (task->code == STATE_CONNECTING || task->code == STATE_CONNECTED) {
+    if (task->code == STATE_CONNECTING or task->code == STATE_CONNECTED) {
         task->code = STATE_TIMEOUT;
     } else if (task->code != STATE_DONE and task->code != STATE_TIMEOUT) {
         task->code = STATE_ERROR;
@@ -300,7 +300,7 @@ void closeLuaConnection(struct Task *task) {
     }
 
     if (task->isEnd) {
-        //таск больше не нужен
+        //таск больше не нужен ddddddddd
         evtimer_del(&task->time_ev);
         deleteTask(task);
 
@@ -927,7 +927,7 @@ void openLuaConnection(struct Task * task) {
     task->Record.Port = 12341;
 #endif
 
-    debug("%s:%d, LObjId = %d %s", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "");
+    debug("%s:%d, LObjId = %d %s, timeout %d ms", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "",task->Record.TimeOut);
 
     gettimeofday(&poll->CheckDt, NULL);
 
