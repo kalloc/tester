@@ -2,3 +2,6 @@
 rpm -Uvh http://download.fedora.redhat.com/pub/epel/5/i386/epel-release-5-3.noarch.rpm
 yum install libevent libevent-devel mc zlib.i386 openssl-devel.i386 c-ares.i386 strace lua valgrind nmap  gdb python-xmpp
 sudo apt-cache get lua-iconv
+
+#put this to /etc/crontab
+echo '0  3 * * * root	find /opt/tester/log -mtime +1  -iname "*.log" -print0 | xargs -n 20 -0 rm -f' >> /etc/crontab

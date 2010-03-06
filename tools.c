@@ -412,6 +412,8 @@ unsigned int openConfiguration(char *filename) {
                 config.lua.path = strdup((const char *) xml_attr->value);
             } else if (!strcmp(xml_attr->name, "log")) {
                 config.log = strdup((const char *) xml_attr->value);
+            } else if (!strcmp(xml_attr->name, "loglevel")) {
+                config.loglevel = atoi(xml_attr->value);
             } else if (!strcmp(xml_attr->name, "minrecheck")) {
                 config.minRecheckPeriod = atoi(xml_attr->value);
             } else if (!strcmp(xml_attr->name, "minperiod")) {
@@ -498,61 +500,62 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
 
 void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) {
 
-    /*
-        static pthread_mutex_t *mutex = NULL;
+    static pthread_mutex_t *mutex = NULL;
+    if (config.loglevel & (level)) {
         if (!mutex) {
             mutex = calloc(1, sizeof (*mutex));
             pthread_mutex_init(mutex, NULL);
         }
-      pthread_mutex_lock(mutex);
-     */
+        pthread_mutex_lock(mutex);
 
-    int len, second, hour;
-    char *buf, *file, *date;
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    buf = getNulledMemory(4096);
-    if (fp == 0) {
-        struct tm *tm;
-        time_t result;
-        result = time(NULL);
-        file = getNulledMemory(4096);
-        tm = localtime(&result);
-        snprintf(file, 4096, config.log, 1900 + tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min);
-        fp = fopen(file, "a");
-        free(file);
+        int len, second, hour;
+        char *buf, *file, *date;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        buf = getNulledMemory(4096);
+        if (fp == 0) {
+            struct tm *tm;
+            time_t result;
+            result = time(NULL);
+            file = getNulledMemory(4096);
+            tm = localtime(&result);
+            snprintf(file, 4096, config.log, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
+            fp = fopen(file, "a");
+            free(file);
+        }
+        if (!fp) return;
+        second = tv.tv_sec - tv.tv_sec / 3600 * 3600;
+        hour = tv.tv_sec / 3600 - (tv.tv_sec / 3600 / 24)*24;
+        len = snprintf(buf, 4096, "[%02d:%02d:%02d %d] [%s%s%s%s] %s%s%s%s",
+                hour, second / 60, second % 60, tv.tv_sec,
+                level == LOG_DEBUG ? "DEBUG" : "",
+                level == LOG_NOTICE ? "NOTICE" : "",
+                level == LOG_INFO ? "INFO" : "",
+                level == LOG_WARN ? "WARN" : "",
+                codefile ? codefile : "",
+                codefunction ? ":" : "",
+                codefunction ? codefunction : "",
+                codefunction ? "() " : ""
+                );
+        fwrite(buf, 1, len, fp);
+#ifdef STDOUT
+        printf(buf);
+#endif
+        va_list ap;
+        va_start(ap, fmt);
+        len = vsnprintf(buf, 4094, fmt, ap);
+        buf[len] = '\n';
+        buf[len + 1] = 0;
+        fwrite(buf, 1, len + 1, fp);
+        fflush(fp);
+        va_end(ap);
+#ifdef STDOUT
+        printf(buf);
+#endif
+        free(buf);
+        pthread_mutex_unlock(mutex);
     }
-    if (!fp) return;
-    second = tv.tv_sec - tv.tv_sec / 3600 * 3600;
-    hour = tv.tv_sec / 3600 - (tv.tv_sec / 3600 / 24)*24;
-    len = snprintf(buf, 4096, "[%02d:%02d:%02d %d] [%s%s%s%s] %s%s%s%s",
-            hour, second / 60, second % 60, tv.tv_sec,
-            level == LOG_DEBUG ? "DEBUG" : "",
-            level == LOG_NOTICE ? "NOTICE" : "",
-            level == LOG_INFO ? "INFO" : "",
-            level == LOG_WARN ? "WARN" : "",
-            codefile ? codefile : "",
-            codefunction ? ":" : "",
-            codefunction ? codefunction : "",
-            codefunction ? "() " : ""
-            );
-    fwrite(buf, 1, len, fp);
-#ifdef STDOUT
-    printf(buf);
-#endif
-    va_list ap;
-    va_start(ap, fmt);
-    len = vsnprintf(buf, 4094, fmt, ap);
-    buf[len] = '\n';
-    buf[len + 1] = 0;
-    fwrite(buf, 1, len + 1, fp);
-    fflush(fp);
-    va_end(ap);
-#ifdef STDOUT
-    printf(buf);
-#endif
-    free(buf);
-    //    pthread_mutex_unlock(mutex);
+
 }
 
 

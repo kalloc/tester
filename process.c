@@ -4,7 +4,7 @@
 #define __TIMESTAMP__ __DATE__" "__TIME__
 #endif
 
-const char version[] = "Tester v0.01/lnx"PLATFORM", Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
+const char version[] = "Tester v0.03/lnx"PLATFORM", Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
 static struct evbuffer *evBuffer = NULL;
 
 static struct timeval tv;
@@ -30,7 +30,7 @@ void onErrorFromServer(Server *pServer, int code) {
 
 void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     struct Poll *poll = pServer->poll;
-#define COMPRESS
+//#define COMPRESS
     struct evbuffer *evReq = evbuffer_new();
     struct Request Req, *pReq;
     bzero((char *) & Req, Size_Request);
@@ -83,7 +83,7 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     evbuffer_free(evReq);
 }
 
-void LoadTask(Server *pServer) {
+void loadTask(Server *pServer) {
     debug("from %s:%d", pServer->host, pServer->port);
 
     if (!evBuffer) {

@@ -119,7 +119,7 @@ void deleteTask(struct Task *task) {
             return;\
         }
 
-void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift) {
+void _addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, int isVerifyTask) {
     isNewTimer = 0;
     isNewResolv = 0;
 
@@ -135,6 +135,7 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addTCPReport;
+        if(isVerifyTask)  task->isVerifyTask = 1;
         isNewTimer = 1;
         isNewResolv = 1;
         debug("NEW TCP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
@@ -147,7 +148,7 @@ void addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
     addTimer(timerTCPTask, getTCPBase());
 };
 
-void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift) {
+void _addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask) {
     isNewTimer = 0;
     isNewResolv = 0;
 
@@ -161,6 +162,7 @@ void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShi
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addICMPReport;
+        if(isVerifyTask)  task->isVerifyTask = 1;
         isNewTimer = 1;
         isNewResolv = 1;
         debug("NEW ICMP id %d, Module %s for %s [%s:%d]", Record->LObjId, getModuleText(Record->ModType), Record->HostName, ipString(Record->IP), Record->Port);
@@ -174,7 +176,7 @@ void addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShi
 
 }
 
-void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, char *data) {
+void _addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask, char *data) {
     isNewConfig = 0;
     isNewTimer = 0;
     isNewResolv = 0;
@@ -195,6 +197,7 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
         task->pServer = pServer;
         task->poll = getNulledMemory(sizeof (struct stTCPUDPInfo));
         task->callback = addTCPReport;
+        if(isVerifyTask)  task->isVerifyTask = 1;
 
         task->ptr = getNulledMemory(sizeof (struct struct_LuaTask));
         ((struct struct_LuaTask *) task->ptr)->ptr = getNulledMemory(Record->ConfigLen + 1);
@@ -213,7 +216,7 @@ void addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
     addTimer(timerLuaTask, getLuaBase(Record->ModType));
 }
 
-void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, char *data) {
+void _addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask, char *data) {
     u_short countByte = 0, countCountByte = 0;
     isNewConfig = 0;
     isNewTimer = 0;
@@ -241,6 +244,7 @@ void addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShif
     } else {
         if (inet_addr(Record->HostName) != -1) task->isHostAsIp = 1;
         else task->isHostAsIp = 0;
+        if(isVerifyTask)  task->isVerifyTask = 1;
 
         task->pServer = pServer;
         dnstask = getNulledMemory(sizeof (*dnstask));

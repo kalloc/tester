@@ -12,7 +12,6 @@
     maxread="500000"
     path="lua/"  
     log="log/%d.%02d.%02d_%02d.%02d.log"
-    loglevel="10"
     minrecheck="10"
     minperiod="60"
     module="icmp,lookup,lua,tcp"
@@ -32,33 +31,12 @@
     periodReport="5" 
     periodReportError="1"  
     periodRetrieve="60" 
-    host="85.12.37.30" 
-    verifer="1"
-    port="7132" 
+    host="127.0.0.1" 
+    port="7777" 
     type="data"
     key="It's a fracking tester's dAta" 
 />
 
-<server
-    timeout="4"   
-    port="7777" 
-    type="verifer"
-    key="uzh0snahvperemezhkusiadomiprocheihrenoten'yu"
-    keyRecv="F4ps#68fencvjurpwekfhhu2ldfne8n@a" 
-/>
 
-
-<!-- 
-    type - storage: ему отправляются все отчеты, и таски от него не принимаются 
--->
-<server
-    timeout="2"   
-    periodReport="300" 
-    type="storage"
-    periodReportError="300"   
-    host="89.188.104.198" 
-    port="7131" 
-    key="It's a fracking tester's dAta" 
-/>
 </servers>
 </config>

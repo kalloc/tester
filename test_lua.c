@@ -251,11 +251,13 @@ void closeLuaConnection(struct Task *task) {
         task->callback(task);
     }
 
+    debug("id %d, 2", task->LObjId);
 
     if (task->isRead) {
         task->isRead = 0;
         evtimer_del(&task->read);
     }
+    debug("id %d, 3", task->LObjId);
 
 
 
@@ -266,12 +268,15 @@ void closeLuaConnection(struct Task *task) {
         poll->bev = 0;
     }
 
+    debug("id %d, 4", task->LObjId);
 
     if (luaTask) {
         if (luaTask->issleep) {
             luaTask->issleep = 0;
             evtimer_del(&luaTask->sleep);
         }
+        debug("id %d, 5", task->LObjId);
+
         if (luaTask->state) {
             lua_pushthread(luaTask->state);
             lua_pushnil(luaTask->state);
@@ -279,6 +284,8 @@ void closeLuaConnection(struct Task *task) {
             luaL_unref(luaTask->luaModule->state, LUA_REGISTRYINDEX, luaTask->ref);
 
             LIST_FOREACH(LuaNetListEntryPtr, &luaTask->LuaNetListHead, entries) {
+                debug("id %d, 6 %08x", task->LObjId, LuaNetListEntryPtr);
+
                 if (LuaNetListEntryPtr->task) {
                     if (LuaNetListEntryPtr->task->isRead) {
                         LuaNetListEntryPtr->task->isRead = 0;
@@ -299,8 +306,11 @@ void closeLuaConnection(struct Task *task) {
         }
     }
 
+    debug("id %d, 7", task->LObjId);
     if (task->isEnd) {
         //таск больше не нужен ddddddddd
+
+        debug("id %d, 8", task->LObjId);
         evtimer_del(&task->time_ev);
         deleteTask(task);
 
@@ -712,15 +722,15 @@ static int LuaNetConnect(lua_State * L) {
         bufferevent_setcb(poll->bev, OnReadLuaTask, OnWriteLuaSubTask, OnErrorLuaSubTask, subtask);
         bufferevent_enable(poll->bev, EV_WRITE | EV_TIMEOUT);
 
-/*
-        BIO *fd_bio = BIO_new(BIO_s_socket());
-        BIO *cipher_bio = BIO_new(BIO_f_cipher());
+        /*
+                BIO *fd_bio = BIO_new(BIO_s_socket());
+                BIO *cipher_bio = BIO_new(BIO_f_cipher());
 
-        BIO_set_fd(fd_bio, bufferevent_getfd(poll->bev), ...);
-        BIO_set_cipher(cipher_bio, ...);
-        BIO_push(cipher_bio, fd_bio);
+                BIO_set_fd(fd_bio, bufferevent_getfd(poll->bev), ...);
+                BIO_set_cipher(cipher_bio, ...);
+                BIO_push(cipher_bio, fd_bio);
 
-*/
+         */
 
         MSToTimeval(task->Record.TimeOut, tv);
 
@@ -927,7 +937,7 @@ void openLuaConnection(struct Task * task) {
     task->Record.Port = 12341;
 #endif
 
-    debug("%s:%d, LObjId = %d %s, timeout %d ms", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "",task->Record.TimeOut);
+    debug("%s:%d, LObjId = %d %s, timeout %d ms", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "", task->Record.TimeOut);
 
     gettimeofday(&poll->CheckDt, NULL);
 

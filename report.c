@@ -28,7 +28,7 @@ void addICMPReport(struct Task * task) {
     ping->LObjId = task->LObjId;
     ping->IP = task->Record.IP;
     ping->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
-    ping->CheckOk = task->code == STATE_DONE ? 1 : 0;
+    ping->CheckRes = task->code == STATE_DONE ? 0 : -1;
     gettimeofday(&tv, NULL);
     ping->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, poll->CheckDt) : 0xffff;
     ping->ProblemIP = poll->ProblemIP;
@@ -56,7 +56,7 @@ void addICMPReport(struct Task * task) {
         } else {
             pServerSC->report.counterReportError++;
         }
-        if (ping->CheckOk) {
+        if (ping->CheckRes > -1 ) {
             LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
@@ -69,7 +69,7 @@ void addICMPReport(struct Task * task) {
     } else {
         task->pServer->report.counterReportError++;
     }
-    if (ping->CheckOk) {
+    if (ping->CheckRes > -1) {
         LIST_INSERT_HEAD(&task->pServer->report.ReportHead, ReportEntryPtr, entries);
 
     } else {
@@ -101,7 +101,10 @@ void addTCPReport(struct Task * task) {
     tcp->LObjId = task->LObjId;
     tcp->IP = task->Record.IP;
     tcp->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
-    tcp->CheckOk = task->code == STATE_DONE ? 1 : 0;
+    tcp->CheckRes = task->code == STATE_DONE ? 0 : -1;
+    if (task->isVerifyTask) {
+        tcp->Flags = TESTER_FLAG_CHECK_TASK;
+    }
     gettimeofday(&tv, NULL);
     tcp->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, poll->CheckDt) : 0xffff;
     tcp->ProblemIP = poll->ProblemIP;
@@ -109,12 +112,13 @@ void addTCPReport(struct Task * task) {
     tcp->ProblemICMP_Type = poll->ProblemICMP_Type;
     tcp->Port = task->Record.Port;
 
-    debug("%d -> Module %s for %s [%s:%d] [ms: %d] [time test:%d] Result %s",
+    debug("%d -> Module %s for %s [%s:%d] [ms: %d] [time test:%d] Flags is %d, Result %s",
             task->Record.LObjId,
             getModuleText(task->Record.ModType),
             task->Record.HostName, ipString(task->Record.IP), task->Record.Port,
             tcp->DelayMS,
             poll->CheckDt.tv_sec,
+            tcp->Flags,
             getStatusText(task->code));
 
     ReportEntryPtr->Data = (char *) tcp;
@@ -130,7 +134,7 @@ void addTCPReport(struct Task * task) {
         } else {
             pServerSC->report.counterReportError++;
         }
-        if (tcp->CheckOk) {
+        if (tcp->CheckRes > -1) {
             LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
@@ -144,7 +148,7 @@ void addTCPReport(struct Task * task) {
     } else {
         task->pServer->report.counterReportError++;
     }
-    if (tcp->CheckOk) {
+    if (tcp->CheckRes  > -1) {
         LIST_INSERT_HEAD(&task->pServer->report.ReportHead, ReportEntryPtr, entries);
     } else {
         LIST_INSERT_HEAD(&task->pServer->report.ReportErrorHead, ReportEntryPtr, entries);
@@ -154,7 +158,6 @@ void addTCPReport(struct Task * task) {
     pthread_mutex_unlock(send_mutex);
 
 }
-
 
 void addDNSReport(struct Task * task) {
     static pthread_mutex_t *mutex;
@@ -177,7 +180,7 @@ void addDNSReport(struct Task * task) {
     tcp->LObjId = task->LObjId;
     tcp->IP = task->Record.IP;
     tcp->CheckDt = LocalToRemoteTime(dnstask->CheckDt.tv_sec);
-    tcp->CheckOk = task->code == STATE_DONE ? 1 : 0;
+    tcp->CheckRes = task->code == STATE_DONE ? 0 : -1;
     gettimeofday(&tv, NULL);
     tcp->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, dnstask->CheckDt) : 0xffff;
     tcp->Port = task->Record.Port;
@@ -203,7 +206,7 @@ void addDNSReport(struct Task * task) {
         } else {
             pServerSC->report.counterReportError++;
         }
-        if (tcp->CheckOk) {
+        if (tcp->CheckRes  > -1) {
             LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
@@ -217,7 +220,7 @@ void addDNSReport(struct Task * task) {
     } else {
         task->pServer->report.counterReportError++;
     }
-    if (tcp->CheckOk) {
+    if (tcp->CheckRes  > -1) {
         LIST_INSERT_HEAD(&task->pServer->report.ReportHead, ReportEntryPtr, entries);
     } else {
         LIST_INSERT_HEAD(&task->pServer->report.ReportErrorHead, ReportEntryPtr, entries);
@@ -239,10 +242,10 @@ u32 countReportError(Server *pServer) {
 void _SendReport(Server *pServer, short error) {
 
     pthread_mutex_lock(send_mutex);
-    struct evbuffer * ptr[MODULE_COUNT];
+    struct evbuffer * ptr[MODULE_LAST];
     short counter;
 
-    bzero(ptr, MODULE_COUNT * sizeof (*ptr));
+    bzero(ptr, MODULE_LAST * sizeof (*ptr));
 
     if (error) {
         Head = &pServer->report.ReportErrorHead;
@@ -251,8 +254,8 @@ void _SendReport(Server *pServer, short error) {
     }
 
 #ifdef ONEPACKET
-
     LIST_FOREACH(ReportEntryPtr, Head, entries) {
+
         if (ptr[ReportEntryPtr->ModType] == 0) {
             ptr[ReportEntryPtr->ModType] = evbuffer_new();
         }
@@ -262,9 +265,8 @@ void _SendReport(Server *pServer, short error) {
         free(ReportEntryPtr->Data);
         free(ReportEntryPtr);
     }
-
     pthread_mutex_unlock(send_mutex);
-    for (counter = 0; counter < MODULE_COUNT; counter++) {
+    for (counter = 0; counter < MODULE_LAST; counter++) {
         if (ptr[counter] > 0) {
             RequestSend(pServer, counter, ptr[counter]);
             evbuffer_free(ptr[counter]);

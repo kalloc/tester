@@ -1,7 +1,8 @@
+#include <event2/bufferevent.h>
+
 #include "include.h"
 #include "aes/aes.h"
 static pthread_mutex_t count_lock;
-struct timeval tv;
 aes_context ctx;
 char IV[16];
 struct event_base *mainBase = 0L;
@@ -9,6 +10,16 @@ static char *Buffer = NULL;
 static u_int BufferLen = 0;
 
 void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
+    
+    
+    
+    
+    
+    
+    
+    
+    debug("%s:%d -> %02x len in buf %d", ((Server *) arg)->host, ((Server *) arg)->port, what,EVBUFFER_LENGTH(bufferevent_get_input(bev)));
+    
     if (what & BEV_EVENT_CONNECTED) return;
     closeConnection((Server *) arg, FALSE);
 }
@@ -82,7 +93,7 @@ void openSession(Server *pServer, short action) {
                 evbuffer_add(Out, Buffer, BufferLen);
                 poll->status = STATE_CONNECTED;
                 bufferevent_enable(pServer->poll->bev, EV_READ | EV_PERSIST);
-                if (pServer->flagRetriveConfig) LoadTask(pServer);
+                if (pServer->flagRetriveConfig) loadTask(pServer);
                 if (pServer->flagSendReportError) SendReportError(pServer);
                 if (pServer->flagSendReport) SendReport(pServer);
                 break;
@@ -95,8 +106,9 @@ void openSession(Server *pServer, short action) {
     }
 }
 
-void runRetrieveTask(Server *pServer) {
+void newConnectionTask(Server *pServer) {
 
+    struct timeval tv;
     struct sockaddr_in sa;
 
     u32 ip;
@@ -129,6 +141,7 @@ void runRetrieveTask(Server *pServer) {
 void timerRetrieveTask(int fd, short action, void *arg) {
     Server *pServer = (Server *) arg;
     static int countRetrieve = 0;
+    struct timeval tv;
     timerclear(&tv);
     tv.tv_sec = pServer->periodRetrieve;
     evtimer_add(&pServer->evConfig, &tv);
@@ -136,9 +149,9 @@ void timerRetrieveTask(int fd, short action, void *arg) {
     debug("%s:%d,%d -> %s  %s", pServer->host, pServer->port, (int) pServer->periodRetrieve, getActionText(action), getStatusText(pServer->poll->status));
     pServer->flagRetriveConfig = 1;
     if (pServer->poll->status == STATE_DISCONNECTED) {
-        runRetrieveTask(pServer);
+        newConnectionTask(pServer);
     } else if (pServer->poll->status == STATE_CONNECTED) {
-        LoadTask(pServer);
+        loadTask(pServer);
     }
     countRetrieve++;
     if (countRetrieve > 100) {
@@ -164,7 +177,7 @@ void timerSendReportError(int fd, short action, void *arg) {
         pServer->flagSendReportError = 1;
 
         if (pServer->poll->status == STATE_DISCONNECTED) {
-            runRetrieveTask(pServer);
+            newConnectionTask(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
             SendReportError(pServer);
         }
@@ -190,7 +203,7 @@ void timerSendReport(int fd, short action, void *arg) {
         pServer->flagSendReport = 1;
 
         if (pServer->poll->status == STATE_DISCONNECTED) {
-            runRetrieveTask(pServer);
+            newConnectionTask(pServer);
         } else if (pServer->poll->status == STATE_CONNECTED) {
             SendReport(pServer);
         }

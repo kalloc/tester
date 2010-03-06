@@ -21,7 +21,7 @@ local AllTest={
     },
 
     ftp={
-	default={host="193.233.9.194",port=21,id=id},
+	default={host="87.236.184.102",port=21,id=id},
 	task={
 		"1314auth1010",
 --		"1414list210solotester181234123410",
@@ -63,9 +63,9 @@ local AllTest={
 	}
     },
     telnet={
-	default={host="mail.ainmarh.com",port=23,id=id},
+	default={host="87.236.184.102",port=23,id=id},
 	task={
-	    "1618chkwords210solotester181234123416uptime11113day"
+	    "1314auth111111"
 --	    "1618chkwords1010testsolo19kjshdf8bh",
 --	    "1413cmd18testsolo19kjshdf8bh16uptime",
 --	    "1618chkwords18testsolo19kjshdf8bh16uptime11113MUD",

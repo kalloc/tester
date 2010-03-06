@@ -10,10 +10,11 @@ module={
 
 local dump =function(t,pad)
     if not pad then pad = 0 end
-    for k,v in pairs(t) do
+    for  k,v in pairs(t) do
 	
 	if type(v) == "table" then
 	    print(("\t"):rep(1).."table "..k)
+	    print (pad)
 	    dump(v,pad+1)
 	else 
 	    print(("\t"):rep(1)..k..'=>'..tostring(v))
@@ -23,6 +24,13 @@ local dump =function(t,pad)
 end
 
 
+local exists = function (val) 
+    if  not val  or val == "" then
+	return nil
+    else
+	return val
+    end
+end
 function main(argv) 
 --	dump(argv)
 
@@ -35,12 +43,12 @@ function main(argv)
 		if not ret or not ret:find('^220') then return nil	end
 
 		--пишем в буфер логин
-		net:write(("USER %s\n"):format(argv.data[1] or "anonymous@anon"))
+		net:write(("USER %s\n"):format(exists(argv.data[1]) or "anonymous"))
 		ret=net:read()
 		if not ret or not ret:find('^331') then return nil	end
 
 		--пишем в буфер пароль
-		net:write(("PASS %s\n"):format(argv.data[2] or "guest"))
+		net:write(("PASS %s\n"):format(exists(argv.data[2]) or "guest"))
 
 		ret=net:read()
 		if not ret or not ret:find('^230') then return nil	end

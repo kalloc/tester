@@ -8,11 +8,7 @@ static struct event_base *base = 0L;
 struct evbuffer *In, *Out;
 
 static void eventcb(struct bufferevent *bev, short what, void *ptr) {
-
-    if (what & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
-        if (what & BEV_EVENT_ERROR) {
-            unsigned long err;
-        }
+    if (what & (BEV_EVENT_TIMEOUT | BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
         closeConnection((Server *) ptr, TRUE);
         free(ptr);
     }
@@ -31,42 +27,42 @@ static void onLoadTask(Server *pServer) {
 
 
     pReq = (struct Request *) data;
-/*
-    printf("2 EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
+    /*
+        printf("2 EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
 
-    printf("0 %08x. %d vs %d\n", pReq, len, Size_Request);
-*/
+        printf("0 %08x. %d vs %d\n", pReq, len, Size_Request);
+     */
     if (len < Size_Request) {
         return;
     }
-/*
-    printf("1 %08x. %d vs %d\n", pReq, len, Size_Request);
-*/
+    /*
+        printf("1 %08x. %d vs %d\n", pReq, len, Size_Request);
+     */
 
     if (pReq->sizes.UncmprSize < Size_Request_hdr or pReq->sizes.UncmprSize > MAX_UNCMPR or(pReq->sizes.CmprSize > 0 and pReq->sizes.CmprSize > MAX_CMPR)) {
         return;
     }
 
-/*
-    printf("2 %08x. %d vs %d\n", pReq, len, Size_Request);
-*/
+    /*
+        printf("2 %08x. %d vs %d\n", pReq, len, Size_Request);
+     */
 
     crc = pReq->sizes.crc;
 
-/*
-    printf("3 %08x\n", crc);
-*/
+    /*
+        printf("3 %08x\n", crc);
+     */
     pReq->sizes.crc = 0;
-/*
-    printf("Compress %d, Un %d\n", pReq->sizes.CmprSize, pReq->sizes.UncmprSize);
-*/
+    /*
+        printf("Compress %d, Un %d\n", pReq->sizes.CmprSize, pReq->sizes.UncmprSize);
+     */
 
     if (crc32(0xffffffff, (const Bytef *) pReq, (pReq->sizes.CmprSize > 0 ? pReq->sizes.CmprSize : pReq->sizes.UncmprSize) + Size_Request_sizes) != crc) {
         return;
     }
-/*
-    printf("CRC OK\n");
-*/
+    /*
+        printf("CRC OK\n");
+     */
 
     if (pReq->sizes.CmprSize) {
         ptr = malloc(pReq->sizes.UncmprSize + Size_Request_sizes);
@@ -88,7 +84,6 @@ static void onLoadTask(Server *pServer) {
     gettimeofday(&tv, NULL);
     int RecordsLen = pReq->sizes.UncmprSize - Size_Request;
     int RecordOffset = 0;
-    int newShift = 0;
     for (
             ;
             RecordOffset < RecordsLen;
@@ -129,17 +124,17 @@ static void onLoadTask(Server *pServer) {
 
         switch (Cfg_Record->ModType) {
             case MODULE_PING:
-                addICMPTask(config.pVeriferDC, &FakeCfg_Record, newShift);
+                addICMPVerifyTask(config.pVeriferDC, &FakeCfg_Record);
                 break;
             case MODULE_TCP_PORT:
-                addTCPTask(config.pVeriferDC, &FakeCfg_Record, newShift);
+                addTCPVerifyTask(config.pVeriferDC, &FakeCfg_Record);
                 break;
             case MODULE_DNS:
-                addDNSTask(config.pVeriferDC, &FakeCfg_Record, newShift, (char *) (Cfg_Record + 1));
+                addDNSVerifyTask(config.pVeriferDC, &FakeCfg_Record, (char *) (Cfg_Record + 1));
                 RecordOffset += Cfg_Record->ConfigLen;
                 break;
             default:
-                addLuaTask(config.pVeriferDC, &FakeCfg_Record, newShift, (char *) (Cfg_Record + 1));
+                addLuaVerifyTask(config.pVeriferDC, &FakeCfg_Record, (char *) (Cfg_Record + 1));
                 RecordOffset += Cfg_Record->ConfigLen;
                 break;
         }
@@ -149,9 +144,9 @@ static void onLoadTask(Server *pServer) {
         free(ptr);
     }
     evbuffer_add(Out, &Readed, sizeof (int));
-/*
-    hexPrint(&Readed, sizeof (int));
-*/
+    /*
+        hexPrint(&Readed, sizeof (int));
+     */
 }
 
 static void callbackRead(struct bufferevent *bev, void *ptr) {
@@ -168,39 +163,41 @@ static void callbackRead(struct bufferevent *bev, void *ptr) {
     Out = bufferevent_get_output(bev);
     len = evbuffer_get_length(In);
 
-/*
-    hexPrint((u_char *) EVBUFFER_DATA(In), EVBUFFER_LENGTH(In));
-    printf("EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
-*/
+    /*
+        hexPrint((u_char *) EVBUFFER_DATA(In), EVBUFFER_LENGTH(In));
+        printf("EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
+     */
 
     switch (poll->status) {
         case STATE_CONNECTED:
             genSharedKey(pServer, (u_char *) EVBUFFER_DATA(In));
             len = 32;
             poll->status = STATE_SESSION;
+            aes_set_key(&ctx, pServer->key.shared, 128);
+            BufferLen = aes_cbc_encrypt(&ctx, pServer->key.shared + 16, (u_char*) & pServer->session, (u_char *) Buffer, sizeof (struct st_session));
+            evbuffer_add(Out, Buffer, BufferLen);
             break;
+
         case STATE_SESSION:
             aes_set_key(&ctx, pServer->key.shared, 128);
             bzero(&session, sizeof (struct st_session));
             BufferLen = aes_cbc_decrypt(&ctx, pServer->key.shared + 16, EVBUFFER_DATA(In), (unsigned char*) & session, sizeof (struct st_session));
 
             if (memcmp(session.password, pServer->passwordRecv, sizeof (pServer->passwordRecv))) {
+                debug("session.password: %s -> %s", bin2hex(session.password, sizeof (session.password)), session.password);
+                debug("  local.password: %s -> %s", bin2hex(pServer->passwordRecv, sizeof (pServer->passwordRecv)), pServer->passwordRecv);
                 BufferLen = snprintf(Buffer, BUFLEN, "%d", SOCK_RC_AUTH_FAILURE);
                 write(bufferevent_getfd(bev), Buffer, BufferLen);
-                bufferevent_settimeout(bev, 0, 0);
+                closeConnection(pServer, TRUE);
                 return;
-            } else {
-                aes_set_key(&ctx, pServer->key.shared, 128);
-                BufferLen = aes_cbc_encrypt(&ctx, pServer->key.shared + 16, (u_char*) & pServer->session, (u_char *) Buffer, sizeof (struct st_session));
-                evbuffer_add(Out, Buffer, BufferLen);
             }
             poll->status = STATE_DONE;
             break;
         default:
 
-/*
-            printf("1 EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
-*/
+            /*
+                        printf("1 EVBUFFER_LENGTH(In) = %d\n", EVBUFFER_LENGTH(In));
+             */
             onLoadTask(pServer);
             break;
     }
@@ -238,16 +235,18 @@ void OnAcceptVeriferTask(struct evconnlistener *listener, evutil_socket_t fd, st
     memcpy(pServer->session.password, config.pVerifer->session.password, sizeof (pServer->session.password));
     memcpy(pServer->passwordRecv, config.pVerifer->passwordRecv, sizeof (config.pVerifer->passwordRecv));
     pServer->poll->bev = bufferevent_socket_new(evconnlistener_get_base(listener), fd, LEV_OPT_CLOSE_ON_FREE | LEV_OPT_CLOSE_ON_EXEC | BEV_OPT_DEFER_CALLBACKS);
+    pServer->poll->fd = bufferevent_getfd(pServer->poll->bev);
 
 
     bufferevent_setcb(pServer->poll->bev, NULL, callbackWrite, eventcb, (void *) pServer);
     bufferevent_enable(pServer->poll->bev, EV_READ | EV_WRITE | EV_TIMEOUT);
+    timerclear(&tv);
     if (pServer->timeout) {
-        timerclear(&tv);
         tv.tv_sec = pServer->timeout;
-        bufferevent_set_timeouts(pServer->poll->bev, &tv, &tv);
+    } else {
+        tv.tv_sec = 10;
     }
-
+    bufferevent_set_timeouts(pServer->poll->bev, &tv, &tv);
 
 }
 
