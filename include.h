@@ -69,28 +69,8 @@
 #define SOCK_RC_UNKNOWN_REQUEST       -9  // Запрошена неизвестная команда
 #define SOCK_RC_TOO_MUCH_CONNECTIONS  -10
 #define SOCK_RC_SERVER_SHUTTING_DOWN  -11
-
 #define TESTER_SQL_HOST_NAME_LEN      128
 
-#define MODULE_COUNT 1024
-
-
-#define OR              ||
-#define AND             &&
-#define or              OR
-#define and             AND
-#define cBLUE		"\e[1;34m"
-#define cYELLOW		"\e[1;33m"
-#define cGREEN		"\e[1;32m"
-#define cRED		"\e[1;31m"
-#define cEND		"\e[0m"
-#define BUFLEN		1024
-#define TTL		3600
-#define TRUE            1
-#define FALSE           0
-#define KEYLEN          128
-#define MAX_UNCMPR       1024*1024*5
-#define MAX_CMPR       1024*512
 
 
 
@@ -102,16 +82,45 @@
 #define HEXPRINT
 #endif
 
+#define MODULE_COUNT        1024
+#define OR                  ||
+#define AND                 &&
+#define or                  OR
+#define and                 AND
+#define cBLUE               "\e[1;34m"
+#define cYELLOW             "\e[1;33m"
+#define cGREEN              "\e[1;32m"
+#define cRED                "\e[1;31m"
+#define cEND                "\e[0m"
+#define BUFLEN              1024
+#define TTL                 3600
+#define TRUE                1
+#define FALSE               0
+#define KEYLEN              128
+#define MAX_UNCMPR          1024*1024*5
+#define MAX_CMPR            1024*512
 //hack (:
-#define u8             u_int8_t
-#define u16             u_int16_t
-#define u32             u_int32_t
-#define u64             u_int64_t
+#define u8                  u_int8_t
+#define u16                 u_int16_t
+#define u32                 u_int32_t
+#define u64                 u_int64_t
+#define s8                  int8_t
+#define s16                 int16_t
+#define s32                 int32_t
+#define s64                 int64_t
+
 #ifdef __x86_64__
-#define PLATFORM "64"
+#define PLATFORM            "64"
 #else
-#define PLATFORM "32"
+#define PLATFORM            "32"
 #endif
+
+//log level
+#define LOG_NONE            0
+#define LOG_NOTICE          1<<0
+#define LOG_INFO            1<<1
+#define LOG_WARN            1<<2
+#define LOG_DEBUG           1<<3
 
 
 #define STATE_DISCONNECTED  0
@@ -145,7 +154,7 @@
  *
  */
 enum {
-    MODE_SERVER, MODE_CONFIG,MODE_VERIFER
+    MODE_SERVER, MODE_CONFIG, MODE_VERIFER
 };
 
 enum MODULE_TYPE {
@@ -157,16 +166,11 @@ enum MODULE_TYPE {
     MODULE_DNS = 6, // Тестер сообщает данные dns-проверки
     MODULE_POP = 7, // Тестер сообщает данные pop3-проверки
     MODULE_TELNET = 8, // Тестер сообщает данные pop3-проверки
+    MODULE_LAST,
     MODULE_READ_OBJECTS_CFG = 1000, // Тестер запрашивает свои рабочие данные
     MODULE_CHECK_TASKS
 };
 
-enum {
-    LOG_DEBUG,
-    LOG_WARN,
-    LOG_INFO,
-    LOG_NOTICE
-};
 
 enum {
     DNS_SUBTASK,
@@ -174,7 +178,6 @@ enum {
     DNS_TASK,
     DNS_GETNS
 };
-
 
 struct nv {
     const char *name;
@@ -185,6 +188,10 @@ struct nv {
 #define Size_Request_hdr sizeof(pReq->hdr)
 #define Size_Request_sizes sizeof(pReq->sizes)
 #define Size_Request (sizeof(struct Request)-sizeof(char *))
+
+#define TESTER_FLAG_HAS_TRACE         1
+#define TESTER_FLAG_CHECK_TASK        2
+#define TESTER_FLAG_HAS_RAW_DATA      4
 
 
 #ifdef DEBUG
@@ -279,11 +286,12 @@ struct _chg_tcp {
     u32 LObjId; // id объекта мониторинга
     u32 CheckDt; // дата проверки, unixtime utc
     u32 IP; // ип тестировавшегося объекта
-    u32 CheckOk; // нормированный результат проверки. 1=ок, или 0.
+    s32 CheckRes; // нормированный результат проверки. 1=ок, или 0.
     u16 DelayMS; // время получения результата в мс, или 0xFFFF если ответ не был получен
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
     u16 ProblemICMP_Code; // icmp.code проблемы от хоста ProblemIP
+    u8  Flags;
     u16 Port; // порт, по которому проводилась проверка
 };
 
@@ -291,7 +299,7 @@ struct _chg_ping {
     u32 LObjId; // id объекта мониторинга
     u32 CheckDt; // дата проверки, unixtime utc
     u32 IP; // ип тестировавшегося объекта
-    u32 CheckOk; // нормированный результат проверки. 1=ок, или 0.
+    u32 CheckRes; // нормированный результат проверки. 1=ок, или 0.
     u16 DelayMS; // время получения результата в мс, или 0xFFFF если ответ не был получен
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
@@ -415,6 +423,7 @@ typedef struct st_config {
     time_t minPeriod;
     u_int testerid;
     int fd;
+    int loglevel;
 
 } Config;
 Config config;
@@ -447,6 +456,7 @@ struct Task {
     u32 LObjId;
     struct event time_ev;
     unsigned code;
+    unsigned isVerifyTask : 1;
     unsigned isHostAsIp : 1;
     unsigned isEnd : 1;
     unsigned isSub : 1;
@@ -475,7 +485,7 @@ struct Task {
 
 //main
 void openSession(Server *, short);
-void runRetrieveTask(Server *);
+void newConnectionTask(Server *);
 void readFromServer(int, short, void *);
 
 //Tools
@@ -510,7 +520,7 @@ void loadServerFromConfiguration(Server *, u32);
 void Process(Server *);
 void initProcess();
 void freeProcess();
-void LoadTask(Server *);
+void loadTask(Server *);
 void processServer(Server *, short);
 void timerRetrieveTask(int, short, void *);
 void onEventFromServer(Server *, short);
@@ -542,10 +552,20 @@ void addLuaReport(struct Task *);
 void incStat(int, int);
 
 //Task
-void addTCPTask(Server *, struct _Tester_Cfg_Record *, int);
-void addICMPTask(Server *, struct _Tester_Cfg_Record *, int);
-void addLuaTask(Server *, struct _Tester_Cfg_Record *, int, char *);
-void addDNSTask(Server *, struct _Tester_Cfg_Record *, int, char *);
+#define  addTCPTask(Server,Cfg,newShift) _addTCPTask(Server, Cfg, newShift, 0)
+#define  addICMPTask(Server,Cfg,newShift) _addICMPTask(Server, Cfg, newShift, 0)
+#define  addLuaTask(Server,Cfg,newShift,data) _addLuaTask(Server, Cfg, newShift, 0,data)
+#define  addDNSTask(Server,Cfg,newShift,data) _addDNSTask(Server, Cfg, newShift, 0,data)
+
+#define  addTCPVerifyTask(Server,Cfg) _addTCPTask(Server, Cfg, 0, 1)
+#define  addICMPVerifyTask(Server,Cfg) _addICMPTask(Server, Cfg, 0, 1)
+#define  addLuaVerifyTask(Server,Cfg,data) _addLuaTask(Server, Cfg, 0, 1,data)
+#define  addDNSVerifyTask(Server,Cfg,data) _addDNSTask(Server, Cfg, 0, 1,data)
+
+void _addTCPTask(Server *, struct _Tester_Cfg_Record *, int, int);
+void _addICMPTask(Server *, struct _Tester_Cfg_Record *, int, int);
+void _addLuaTask(Server *, struct _Tester_Cfg_Record *, int, int, char *);
+void _addDNSTask(Server *, struct _Tester_Cfg_Record *, int, int, char *);
 void deleteTask(struct Task *);
 #define getTask(id) searchTask(id,TRUE)
 #define createTask(id) searchTask(id,FALSE)
