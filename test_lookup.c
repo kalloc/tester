@@ -174,7 +174,7 @@ inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *
                         if (dnstask->task->LObjId == 1056) raise(SIGSEGV);
              */
 
-            if (dlen == 4 and(dnstask->taskPattern[0] = 0 or !memcmp(addr, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
+            if (dlen == 4 and(dnstask->taskPattern[0] == 0 or !memcmp(addr, dnstask->taskPattern, dnstask->taskPatternLen)) and(dnstask->taskTTL == 0 or ttl == dnstask->taskTTL)) {
                 dnstask->task->code = STATE_DONE;
             }
             break;
@@ -303,7 +303,7 @@ void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned char *a
         if (aptr == NULL) return;
     }
     struct hostent *he;
-    struct addrttl addrttls;
+    struct ares_addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;
 
     dnstask->task->code = STATE_ERROR;
@@ -371,9 +371,8 @@ void timerDNSTask(int fd, short action, void *arg) {
         return;
     }
     setNextTimer(task);
-
+    debug("LobjId:%d, Role %s, Hostname %s", task->LObjId, getRoleText(dnstask->role), task->Record.HostName);
     if (task->resolv and task->resolv->NSIP) {
-        debug("LobjId:%d, Role %s, Hostname %s", task->LObjId, getRoleText(dnstask->role), task->Record.HostName);
         makeDNSTask(dnstask);
     }
 

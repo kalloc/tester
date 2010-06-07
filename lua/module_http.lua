@@ -1,12 +1,12 @@
 #!/usr/bin/lua
-
+--2010-05-07 16:03
 
 module={
     type="Tcp",
     name="HTTP",
     id=3
 }
-local tostr = function(arg,ret)
+function tostr(arg,ret)
     return arg and arg ~= '' and ret or ''
 end
 

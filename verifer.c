@@ -103,8 +103,7 @@ static void onLoadTask(Server *pServer) {
         FakeCfg_Record.TimeOut = Cfg_Record->TimeOut;
 
         FakeCfg_Record.NextCheckDt = RemoteToLocalTime(Cfg_Record->NextCheckDt);
-        if (FakeCfg_Record.NextCheckDt < tv.tv_sec) FakeCfg_Record.NextCheckDt = 0;
-        else FakeCfg_Record.NextCheckDt = FakeCfg_Record.NextCheckDt - tv.tv_sec;
+        if (FakeCfg_Record.NextCheckDt < tv.tv_sec) FakeCfg_Record.NextCheckDt = tv.tv_sec+1;
 
 
 

@@ -73,6 +73,9 @@
 
 
 
+//активация изменений
+#define CFG_2
+
 
 //отправлять одни пакетом
 #define ONEPACKET
@@ -117,22 +120,22 @@
 
 //log level
 #define LOG_NONE            0
-#define LOG_NOTICE          1<<0
-#define LOG_INFO            1<<1
-#define LOG_WARN            1<<2
-#define LOG_DEBUG           1<<3
+#define LOG_NOTICE          (1<<0)
+#define LOG_INFO            (1<<1)
+#define LOG_WARN            (1<<2)
+#define LOG_DEBUG           (1<<3)
 
 
 #define STATE_DISCONNECTED  0
-#define STATE_CONNECTING    1<<0
-#define STATE_CONNECTED     1<<1
-#define STATE_DONE          1<<2
-#define STATE_ERROR         1<<3
-#define STATE_SESSION       1<<4
-#define STATE_QUIT          1<<5
-#define STATE_TIMEOUT       1<<6
-#define STATE_WRITE         1<<7
-#define STATE_READ          1<<8
+#define STATE_CONNECTING    (1<<0)
+#define STATE_CONNECTED     (1<<1)
+#define STATE_DONE          (1<<2)
+#define STATE_ERROR         (1<<3)
+#define STATE_SESSION       (1<<4)
+#define STATE_QUIT          (1<<5)
+#define STATE_TIMEOUT       (1<<6)
+#define STATE_WRITE         (1<<7)
+#define STATE_READ          (1<<8)
 
 #define emptyRequestSend(poll, type)  RequestSend(poll, type, NULL)
 #define freeConnection(poll) closeConnection(poll,TRUE)
@@ -171,7 +174,6 @@ enum MODULE_TYPE {
     MODULE_CHECK_TASKS
 };
 
-
 enum {
     DNS_SUBTASK,
     DNS_RESOLV,
@@ -189,10 +191,10 @@ struct nv {
 #define Size_Request_sizes sizeof(pReq->sizes)
 #define Size_Request (sizeof(struct Request)-sizeof(char *))
 
-#define TESTER_FLAG_HAS_TRACE         1
-#define TESTER_FLAG_CHECK_TASK        2
-#define TESTER_FLAG_HAS_RAW_DATA      4
-
+#define TESTER_FLAG_HAS_TRACE         (1<<0)
+#define TESTER_FLAG_CHECK_TASK        (1<<1)
+#define TESTER_FLAG_HAS_RAW_DATA      (1<<2)
+#define TESTER_FLAG_CHANGE_CFGVER     (1<<3)
 
 #ifdef DEBUG
 #define debug(...) loger(__FILE__,__FUNCTION__,LOG_DEBUG, __VA_ARGS__);
@@ -245,6 +247,12 @@ struct Request {
 
 struct _Tester_Cfg_AddData {
     u32 ServerTime; // Сервер сообщает свое текущее время. unixtime utc
+#ifdef CFG_2
+    u32 CfgRereadPeriod; // Tester reread config period
+    u32 BODMaxAge; // Operdata DB cache MaxAge
+    u32 CHGMaxAge; // CHG DB cache MaxAge
+#endif
+
 };
 
 struct _Tester_Cfg_Record {
@@ -261,6 +269,10 @@ struct _Tester_Cfg_Record {
     u32 FoldedNext; // LObjId предыдущего хоста в folded-цепочке или 0
     u32 FoldedPrev; // LObjId следующего хоста в folded-цепочке или 0
     u32 TimeOut;
+
+#ifdef CFG_2
+    u8 CFGVer;
+#endif
     u32 ConfigLen;
 };
 
@@ -274,6 +286,10 @@ struct _Verifer_Cfg_Record {
     u32 NextCheckDt; // дата ближайшей проверки. unixtime utc
     char HostName[TESTER_SQL_HOST_NAME_LEN]; // имя хоста
     u32 TimeOut;
+
+#ifdef CFG_2
+    u8 CFGVer;
+#endif
     u32 ConfigLen;
 };
 
@@ -291,7 +307,10 @@ struct _chg_tcp {
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
     u16 ProblemICMP_Code; // icmp.code проблемы от хоста ProblemIP
-    u8  Flags;
+    u8 Flags;
+#ifdef CFG_2
+    u8 CFGVer;
+#endif
     u16 Port; // порт, по которому проводилась проверка
 };
 
@@ -304,6 +323,10 @@ struct _chg_ping {
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
     u16 ProblemICMP_Code; // icmp.code проблемы от хоста ProblemIP
+    u8 Flags;
+#ifdef CFG_2
+    u8 CFGVer;
+#endif
 };
 
 struct Poll {
@@ -462,6 +485,9 @@ struct Task {
     unsigned isSub : 1;
     unsigned isRead : 1;
     unsigned isShiftActive : 1;
+#ifdef CFG_2
+    unsigned isCfgChange : 1;
+#endif
     unsigned readedSize;
     struct event read;
     void *poll;

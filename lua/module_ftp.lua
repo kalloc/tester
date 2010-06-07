@@ -1,6 +1,5 @@
 #!/usr/bin/lua
-
-local net
+--2010-05-07 16:03
 
 module={
 	type="Tcp",

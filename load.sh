@@ -1,6 +1,6 @@
 #!/bin/bash
 
-servers="root@solo1"
+servers=$(cat /etc/hosts | grep solo | grep -v '#' | awk '{print "root@"$2}')
 function load() {
     ssh $1 'rm -f /opt/tester/tester'
     echo Load binaries to $(echo $1 | awk -F@ '{print $2}')
@@ -14,6 +14,8 @@ if [ $# == 0 ];then
 	load $server
     done
 else
-    load $1
+    for server in $1;do 
+	load $server
+    done
 fi
 echo Done

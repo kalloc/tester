@@ -35,6 +35,7 @@ OBJECTFILES= \
 	${OBJECTDIR}/test_lua.o \
 	${OBJECTDIR}/yxml.o \
 	${OBJECTDIR}/test_lookup.o \
+	${OBJECTDIR}/verifer.o \
 	${OBJECTDIR}/aes/aes.o \
 	${OBJECTDIR}/tester.o \
 	${OBJECTDIR}/resolv.o \
@@ -95,6 +96,11 @@ ${OBJECTDIR}/test_lookup.o: nbproject/Makefile-${CND_CONF}.mk test_lookup.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lookup.o test_lookup.c
+
+${OBJECTDIR}/verifer.o: nbproject/Makefile-${CND_CONF}.mk verifer.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -g -O -Wall -I/opt/tester/include -MMD -MP -MF $@.d -o ${OBJECTDIR}/verifer.o verifer.c
 
 ${OBJECTDIR}/aes/aes.o: nbproject/Makefile-${CND_CONF}.mk aes/aes.c 
 	${MKDIR} -p ${OBJECTDIR}/aes

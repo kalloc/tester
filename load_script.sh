@@ -1,6 +1,6 @@
 #!/bin/bash
+servers=$(cat /etc/hosts | grep solo | grep -v '#' | awk '{print "root@"$2}')
 
-servers="root@solo1 root@solo2"
 function load() {
     echo Load script to $(echo $1 | awk -F@ '{print $2}')
     scp -q lua/module_*.lua  $1:/opt/tester/lua

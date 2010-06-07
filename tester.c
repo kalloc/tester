@@ -37,6 +37,7 @@ struct Task * searchTask(int LObjId, short flag) {
 };
 
 void deleteTask(struct Task *task) {
+    debug("id is %d%s%s%s",task->LObjId,task->isSub?", isSub":"",task->isEnd?", isEnd":"",task->isVerifyTask?", isVerifyTask":"");
     if (task->LObjId and task->isSub == 0) {
         tdelete((void *) task, &rootForId, compareId);
     }
@@ -79,7 +80,7 @@ void deleteTask(struct Task *task) {
 #define addTimer(callback,base) \
    if (isNewTimer) {\
         timerclear(&tv);\
-        tv.tv_sec = Record->NextCheckDt - pServer->timeOfLastUpdate;\
+        tv.tv_sec = Record->NextCheckDt ? Record->NextCheckDt - pServer->timeOfLastUpdate : 0;\
         event_assign(&task->time_ev, base?base:mainBase, -1, 0, callback, task);\
         evtimer_add(&task->time_ev, &tv);\
         task->timeShift=newShift;\
@@ -116,10 +117,18 @@ void deleteTask(struct Task *task) {
         if (task->Record.ModType != Record->ModType or task->Record.ModType != Record->ModType or strcmp(Record->HostName,task->Record.HostName)) {\
             task->Record.CheckPeriod = 0;\
             setEnd(task);\
+            pthread_mutex_unlock(mutex);\
             return;\
         }
 
 void _addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift, int isVerifyTask) {
+    debug("mutex_lock")
+    static pthread_mutex_t *mutex = NULL;
+    if (!mutex) {
+        mutex = calloc(1, sizeof (*mutex));
+        pthread_mutex_init(mutex, NULL);
+    }
+    pthread_mutex_lock(mutex);
     isNewTimer = 0;
     isNewResolv = 0;
 
@@ -146,9 +155,18 @@ void _addTCPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShi
 
     addSubTaskResolv(DNS_RESOLV);
     addTimer(timerTCPTask, getTCPBase());
+    debug("mutex_unlock")
+    pthread_mutex_unlock(mutex);
 };
 
 void _addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask) {
+    debug("mutex_lock")
+    static pthread_mutex_t *mutex = NULL;
+    if (!mutex) {
+        mutex = calloc(1, sizeof (*mutex));
+        pthread_mutex_init(mutex, NULL);
+    }
+    pthread_mutex_lock(mutex);
     isNewTimer = 0;
     isNewResolv = 0;
 
@@ -173,10 +191,20 @@ void _addICMPTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newSh
 
     addSubTaskResolv(DNS_RESOLV);
     addTimer(timerICMPTask, getICMPBase());
+    debug("mutex_unlock")
+    pthread_mutex_unlock(mutex);
 
 }
 
 void _addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask, char *data) {
+    debug("mutex_lock")
+    static pthread_mutex_t *mutex = NULL;
+    if (!mutex) {
+        mutex = calloc(1, sizeof (*mutex));
+        pthread_mutex_init(mutex, NULL);
+    }
+    pthread_mutex_lock(mutex);
+
     isNewConfig = 0;
     isNewTimer = 0;
     isNewResolv = 0;
@@ -214,9 +242,18 @@ void _addLuaTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShi
 
     addSubTaskResolv(DNS_RESOLV);
     addTimer(timerLuaTask, getLuaBase(Record->ModType));
+    debug("mutex_unlock")
+    pthread_mutex_unlock(mutex);
 }
 
 void _addDNSTask(Server *pServer, struct _Tester_Cfg_Record * Record, int newShift,int isVerifyTask, char *data) {
+    debug("mutex_lock")
+    static pthread_mutex_t *mutex = NULL;
+    if (!mutex) {
+        mutex = calloc(1, sizeof (*mutex));
+        pthread_mutex_init(mutex, NULL);
+    }
+    pthread_mutex_lock(mutex);
     u_short countByte = 0, countCountByte = 0;
     isNewConfig = 0;
     isNewTimer = 0;
@@ -319,7 +356,8 @@ end:
                     14 7200
                     214 82.179.196.194
      */
-
+    debug("mutex_unlock")
+    pthread_mutex_unlock(mutex);
 
 };
 
@@ -329,198 +367,3 @@ void initTester() {
     initDNSTester();
     initLUATester();
 }
-//#define TEST_PING
-//#define TEST_TCP
-//#define TEST_HTTP2
-
-#ifdef TEST_ALL
-#define TEST_FTP
-#define TEST_HTTP
-#define TEST_POP
-#define TEST_SMTP
-#endif
-//#define TESTER
-
-#ifdef TESTER
-
-int main(int arg, char **argv) {
-    initMainVars();
-
-    openConfiguration("config.xml");
-
-    initTester();
-    u32 i = 0;
-    u32 ip = 0;
-
-#ifndef COUNT
-#define COUNT 1
-#endif
-#ifndef CHECKPERIOD
-#define CHECKPERIOD 0
-#endif
-#ifdef TEST_PING
-    struct _Tester_Cfg_Record RequestICMP[COUNT];
-    //inet_aton("195.42.186.21", (struct in_addr *) & ip);
-    inet_aton("192.168.1.225", (struct in_addr *) & ip);
-    //inet_aton("89.188.104.250", (struct in_addr *) & ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestICMP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestICMP[i].CheckPeriod = CHECKPERIOD;
-        RequestICMP[i].IP = ip;
-        RequestICMP[i].LObjId = 30000 + i;
-        RequestICMP[i].ModType = MODULE_PING;
-        RequestICMP[i].Port = 0;
-        RequestICMP[i].TimeOut = 1000;
-        RequestICMP[i].ResolvePeriod = 0;
-        RequestICMP[i].NextCheckDt = 0;
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addTCPTask(&RequestICMP[i]);
-    }
-#endif
-#ifdef TEST_TCP
-    struct _Tester_Cfg_Record RequestTCP[COUNT];
-    inet_aton("192.168.1.225", (struct in_addr *) & ip);
-    //inet_aton("213.248.62.7", &ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestTCP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestTCP[i].CheckPeriod = CHECKPERIOD;
-        RequestTCP[i].IP = ip;
-        RequestTCP[i].LObjId = 20000 + i;
-        RequestTCP[i].ModType = MODULE_TCP_PORT;
-        RequestTCP[i].Port = 80;
-        RequestTCP[i].ResolvePeriod = 0;
-        RequestTCP[i].TimeOut = 1;
-        RequestTCP[i].NextCheckDt = 0;
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addTCPTask(&RequestTCP[i]);
-    }
-#endif
-#ifdef TEST_HTTP
-    struct _Tester_Cfg_Record RequestHTTP[COUNT];
-    //inet_aton("192.168.1.225", (struct in_addr *) & ip);
-    //inet_aton("89.188.104.250", (struct in_addr *) & ip);
-    //inet_aton("77.88.21.11", (struct in_addr *) & ip);
-    inet_aton("213.248.62.4", (struct in_addr *) & ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestHTTP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestHTTP[i].CheckPeriod = CHECKPERIOD;
-        RequestHTTP[i].IP = 0;
-        RequestHTTP[i].LObjId = 10000 + i;
-        RequestHTTP[i].ModType = MODULE_HTTP;
-        RequestHTTP[i].Port = 80;
-        RequestHTTP[i].TimeOut = 100;
-        RequestHTTP[i].ConfigLen = sizeof ("1317chksize18test.php147000");
-        RequestHTTP[i].ResolvePeriod = 60;
-        RequestHTTP[i].NextCheckDt = 1;
-        snprintf((char *) & RequestHTTP[i].HostName, TESTER_SQL_HOST_NAME_LEN, "n1ck.name");
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addLuaTask(& RequestHTTP[i], "1317chksize18test.php147000");
-    }
-#endif
-#ifdef TEST_POP
-    struct _Tester_Cfg_Record RequestPOP[COUNT];
-    inet_aton("213.248.62.7", (struct in_addr *) & ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestPOP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestPOP[i].CheckPeriod = CHECKPERIOD;
-        RequestPOP[i].IP = ip;
-        RequestPOP[i].LObjId = 40000 + i;
-        RequestPOP[i].ModType = MODULE_POP;
-        RequestPOP[i].Port = 110;
-        RequestPOP[i].ResolvePeriod = 0;
-        RequestPOP[i].NextCheckDt = 0;
-        snprintf((char *) & RequestPOP[i].HostName, TESTER_SQL_HOST_NAME_LEN, "localhost");
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addLuaTask(&RequestPOP[i], "1418chkwords14HTTP15nginx");
-    }
-#endif
-#ifdef TEST_FTP
-    struct _Tester_Cfg_Record RequestFTP[COUNT];
-    inet_aton("213.248.62.7", (struct in_addr *) & ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestFTP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestFTP[i].CheckPeriod = CHECKPERIOD;
-        RequestFTP[i].IP = ip;
-        RequestFTP[i].LObjId = 50000 + i;
-        RequestFTP[i].ModType = MODULE_FTP;
-        RequestFTP[i].Port = 21;
-        RequestFTP[i].TimeOut = 1000;
-        RequestFTP[i].ConfigLen = sizeof ("1513put210solotester181234123411/15file2");
-        RequestFTP[i].ResolvePeriod = 0;
-        RequestFTP[i].NextCheckDt = 0;
-        snprintf((char *) & RequestFTP[i].HostName, TESTER_SQL_HOST_NAME_LEN, "localhost");
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addLuaTask(& RequestFTP[i], "1513put210solotester181234123411/15file2");
-    }
-#endif
-#ifdef TEST_SMTP
-    struct _Tester_Cfg_Record RequestSMTP[COUNT];
-    inet_aton("213.248.62.7", (struct in_addr *) & ip);
-
-    for (i = 0; i < COUNT; i++) {
-        bzero(&RequestSMTP[i], sizeof (struct _Tester_Cfg_Record));
-        RequestSMTP[i].CheckPeriod = CHECKPERIOD;
-        RequestSMTP[i].IP = ip;
-        RequestSMTP[i].LObjId = 60000 + i;
-        RequestSMTP[i].ModType = MODULE_SMTP;
-        RequestSMTP[i].Port = 25;
-        //RequestSMTP[i].TimeOut = 50000;
-        RequestSMTP[i].ResolvePeriod = 60;
-        RequestSMTP[i].NextCheckDt = 0;
-        RequestSMTP[i].ConfigLen = sizeof ("1314send220solotester@n1ck.name1812341234");
-        snprintf((char *) & RequestSMTP[i].HostName, TESTER_SQL_HOST_NAME_LEN, "n1ck.name");
-    }
-
-    for (i = 0; i < COUNT; i++) {
-        addLuaTask(& RequestSMTP[i], "1314send220solotester@n1ck.name1812341234");
-    }
-#endif
-    event_dispatch();
-
-
-#ifdef TEST_HTTP
-    printf(cGREEN"\nMODULE_HTTP STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_HTTP].OK, config.stat[MODULE_HTTP].TIMEOUT, config.stat[MODULE_HTTP].ERROR);
-#endif
-
-#ifdef TEST_SMTP
-    printf(cGREEN"\nMODULE_SMTP STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_SMTP].OK, config.stat[MODULE_SMTP].TIMEOUT, config.stat[MODULE_SMTP].ERROR);
-#endif
-
-#ifdef TEST_FTP
-    printf(cGREEN"\nMODULE_FTP STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_FTP].OK, config.stat[MODULE_FTP].TIMEOUT, config.stat[MODULE_FTP].ERROR);
-#endif
-
-#ifdef TEST_POP
-    printf(cGREEN"\nMODULE_POP STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_POP].OK, config.stat[MODULE_POP].TIMEOUT, config.stat[MODULE_POP].ERROR);
-#endif
-
-#ifdef TEST_PING
-    printf(cGREEN"\nMODULE_PING STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_PING].OK, config.stat[MODULE_PING].TIMEOUT, config.stat[MODULE_PING].ERROR);
-#endif
-
-#ifdef TEST_TCP
-    printf(cGREEN"\nMODULE_TCP_PORT STAT"cEND" OK:%d , TIMEOUT: %d, ERROR: %d\n\n", config.stat[MODULE_TCP_PORT].OK, config.stat[MODULE_TCP_PORT].TIMEOUT, config.stat[MODULE_TCP_PORT].ERROR);
-#endif
-
-    event_base_free(base);
-
-    return 0;
-}
-
-
-#endif

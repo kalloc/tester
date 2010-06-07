@@ -32,7 +32,7 @@
     periodReport="5" 
     periodReportError="1"  
     periodRetrieve="60" 
-    host="85.12.37.30" 
+    host="94.124.105.241" 
     verifer="1"
     port="7132" 
     type="data"

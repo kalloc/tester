@@ -75,7 +75,7 @@ void OnReadICMPTask(int fd, short event, void *arg) {
             icmp_poll->ProblemIP = (u32) (state == STATE_DONE ? sa.sin_addr.s_addr : 0);
 
             task->code = state;
-
+            evtimer_del(&task->read);
             debug("id %d, Module %s for %s [%s:%d] [Icmp_Code: %d, Icmp_Type: %d, ms: %d]", IcmpEntryPtr->task->Record.LObjId, getModuleText(IcmpEntryPtr->task->Record.ModType), IcmpEntryPtr->task->Record.HostName, ipString(IcmpEntryPtr->task->Record.IP), IcmpEntryPtr->task->Record.Port, icmp_poll->ProblemICMP_Code, icmp_poll->ProblemICMP_Type, icmp_poll->DelayMS);
             if (task->callback) {
                 task->callback(task);
@@ -191,6 +191,11 @@ void timerICMPTask(int fd, short action, void *arg) {
     if (task->Record.IP) {
         if (IcmpPoll.write_fd == 0) {
             IcmpPoll.write_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+            if (IcmpPoll.write_fd == -1) {
+                debug("!!!!!!!!!!!!!!!!Need root for ICMP test!!!!!!!!!!!!!!!!!1");
+                OnDisposeICMPTask(task);
+                return;
+            }
             evutil_make_socket_nonblocking(IcmpPoll.write_fd);
             event_set(&IcmpPoll.write_ev, IcmpPoll.write_fd, EV_WRITE | EV_PERSIST, OnWriteICMPTask, NULL);
             event_add(&IcmpPoll.write_ev, NULL);

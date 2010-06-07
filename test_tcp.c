@@ -36,29 +36,16 @@ void OnErrorTCPTask(struct bufferevent *bev, short what, void *arg) {
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
     int valopt = 0;
     socklen_t lon = 0;
+    if (what & BEV_EVENT_CONNECTED) {
+        task->code = STATE_DONE;
+    } else {
+        task->code = STATE_TIMEOUT;
+    }
+
 
     debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->Record.LObjId, getModuleText(task->Record.ModType));
 
-    getsockopt(poll->fd, SOL_SOCKET, SO_ERROR, (void *) & valopt, &lon);
-    task->code = STATE_TIMEOUT;
-    //добавляем репорт о ошибке
     closeTCPConnection(task);
-
-}
-
-void OnWriteTCPTask(struct bufferevent *bev, void *arg) {
-    struct Task *task = (struct Task *) arg;
-    struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
-
-    task->code = STATE_DONE;
-
-    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->Record.LObjId, getModuleText(task->Record.ModType));
-    closeTCPConnection(task);
-}
-
-void OnReadTCPTask(struct bufferevent *bev, void *arg) {
-    struct Task *task = (struct Task *) arg;
-    debug("%s(%s):%d -> id %d, Module %s", task->Record.HostName, ipString(task->Record.IP), task->Record.Port, task->Record.LObjId, getModuleText(task->Record.ModType));
 
 }
 
@@ -78,7 +65,7 @@ void openTCPConnection(struct Task *task) {
 
     poll->bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_socket_connect(poll->bev, (struct sockaddr *) & sa, sizeof (sa));
-    bufferevent_setcb(poll->bev, OnReadTCPTask, OnWriteTCPTask, OnErrorTCPTask, task);
+    bufferevent_setcb(poll->bev, 0, 0, OnErrorTCPTask, task);
     bufferevent_enable(poll->bev, EV_WRITE | EV_READ | EV_PERSIST | EV_TIMEOUT);
 
 

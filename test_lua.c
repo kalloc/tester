@@ -920,8 +920,10 @@ void openLuaConnection(struct Task * task) {
     struct struct_LuaTask *luaTask = (struct struct_LuaTask *) task->ptr;
     struct struct_LuaModule *luaModule = getLua(task->Record.ModType);
 
+    gettimeofday(&poll->CheckDt, NULL);
 
     if (luaModule == NULL) {
+        debug("Unable to load module %s",getModuleText(task->Record.ModType));
         task->code = STATE_ERROR;
         task->callback(task);
         evtimer_del(&task->time_ev);
@@ -939,7 +941,6 @@ void openLuaConnection(struct Task * task) {
 
     debug("%s:%d, LObjId = %d %s, timeout %d ms", ipString(task->Record.IP), task->Record.Port, task->LObjId, task->isSub ? "is sub" : "", task->Record.TimeOut);
 
-    gettimeofday(&poll->CheckDt, NULL);
 
     task->code = STATE_CONNECTING;
 
@@ -1101,7 +1102,6 @@ void timerLuaTask(int fd, short action, void *arg) {
         return;
     }
     if (task->code) closeLuaConnection(task);
-
     setNextTimer(task);
     if (task->Record.IP) openLuaConnection(task);
 }

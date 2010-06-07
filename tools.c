@@ -2,7 +2,7 @@
 #include "yxml.h"
 #include <zlib.h>
 #include <ctype.h>
-//#define STDOUT
+#define STDOUT
 struct timeval tv;
 FILE * fp = 0;
 

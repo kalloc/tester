@@ -4,7 +4,7 @@
 #define __TIMESTAMP__ __DATE__" "__TIME__
 #endif
 
-const char version[] = "Tester v0.03/lnx"PLATFORM", Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
+const char version[] = "Tester v0.08/l"PLATFORM" ["LUA_RELEASE",c-ares "ARES_VERSION_STR","_EVENT_PACKAGE" "_EVENT_VERSION"], Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
 static struct evbuffer *evBuffer = NULL;
 
 static struct timeval tv;
@@ -27,10 +27,9 @@ void onErrorFromServer(Server *pServer, int code) {
     debug("%s[%d] host [%s:%d]", getErrorText(code), code, pServer->host, pServer->port);
 }
 
-
 void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
     struct Poll *poll = pServer->poll;
-//#define COMPRESS
+    //#define COMPRESS
     struct evbuffer *evReq = evbuffer_new();
     struct Request Req, *pReq;
     bzero((char *) & Req, Size_Request);
@@ -68,16 +67,16 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
 
 #endif
     pReq->sizes.crc = crc32(0xffffffff, (const Bytef *) pReq, evbuffer_get_length(evReq));
-    /*
+/*
     #ifdef DEBUG
         printf(cBLUE"\treq->sizes.CmprSize=%d"cEND, pReq->sizes.CmprSize);
         printf(cBLUE"\treq->sizes.UncmprSize=%d"cEND, pReq->sizes.UncmprSize);
-        printf(cBLUE"\treq->sizes.crc=0x%08x"cEND, pReq->sizes.crc);
+        printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
     #ifdef HEXPRINT
         hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
     #endif
     #endif
-     */
+*/
 
     bufferevent_write_buffer(poll->bev, evReq);
     evbuffer_free(evReq);
@@ -139,6 +138,17 @@ void onLoadTask(Server *pServer) {
     }
 
     Cfg_AddData = (struct _Tester_Cfg_AddData *) & pReq->Data;
+    if (Cfg_AddData->CfgRereadPeriod != pServer->periodRetrieve) {
+        debug("set new period reread config from %d to %d", pServer->periodRetrieve,Cfg_AddData->CfgRereadPeriod);
+        pServer->periodRetrieve = Cfg_AddData->CfgRereadPeriod;
+        tv.tv_usec = 0;
+        tv.tv_sec = pServer->periodRetrieve;
+        evtimer_del(&pServer->evConfig);
+        evtimer_set(&pServer->evConfig, timerRetrieveTask, pServer);
+        evtimer_add(&pServer->evConfig, &tv);
+    }
+
+
     gettimeofday(&tv, NULL);
     config.TimeStabilization = tv.tv_sec - Cfg_AddData->ServerTime;
     pServer->timeOfLastUpdate = tv.tv_sec;
@@ -157,6 +167,9 @@ void onLoadTask(Server *pServer) {
         if (Cfg_Record->TimeOut == 0 or Cfg_Record->TimeOut >= config.timeout * 950)
             Cfg_Record->TimeOut = config.timeout * 950;
 
+
+
+
 #ifdef DEBUG
         debug("\tid объекта тестирования = %d", Cfg_Record->LObjId);
         debug("\tтип модуля тестирования (пинг-порт-хттп-...) = %s", getModuleText(Cfg_Record->ModType));
@@ -172,6 +185,8 @@ void onLoadTask(Server *pServer) {
         debug("\tТаймаут для проверки = %d", Cfg_Record->TimeOut);
         debug("\tРазмер дополнительных данных = %d", Cfg_Record->ConfigLen);
 #endif
+        if (Cfg_Record->ConfigLen > RecordsLen) return;
+
         newShift = Cfg_Record->NextCheckDt % Cfg_Record->CheckPeriod;
         Cfg_Record->NextCheckDt = ((tv.tv_sec / Cfg_Record->CheckPeriod) * Cfg_Record->CheckPeriod) + RemoteToLocalTime(Cfg_Record->NextCheckDt) % Cfg_Record->CheckPeriod;
         if (Cfg_Record->NextCheckDt < tv.tv_sec) Cfg_Record->NextCheckDt += Cfg_Record->CheckPeriod;

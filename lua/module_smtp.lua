@@ -1,4 +1,5 @@
 #!/usr/bin/lua
+--2010-05-07 16:03
 
 module={
     type="Tcp",
@@ -10,7 +11,7 @@ function main(argv)
     local Request=[[Envelope-to: solotester@solomonitoring.ru
 From: SoloTester <solotester@solomonitoring.ru>
 Reply-To: <solotester@solomonitoring.ru>
-User-Agent: Solo_Tester Module_SMTP
+User-Agent: SoloMonitoring.Ru Module_SMTP
 MIME-Version: 1.0
 To: <solotester@solomonitoring.ru>
 Subject: Tester Message
@@ -85,14 +86,11 @@ LObjId %id%
 
 	net:write("DATA\n")
 	ret = net:read()
-	print(ret)
 	
 	if not ret or not  ret:find("^354") then       net:error(ret);       return end
 
 	net:write(Request:gsub("%%id%%",argv.id))
-	print("записали дохуя")
 	ret = net:read()
-	print('!!!!!!!!!',ret)
 	if not ret or not ret:find("^250") then       net:error(ret);       return end
     end
     --выходим

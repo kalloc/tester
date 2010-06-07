@@ -1,6 +1,5 @@
 #!/usr/bin/lua
-
-local net
+--2010-05-07 16:03
 
 module={
 	type="Tcp",
@@ -8,9 +7,6 @@ module={
 	id=8
 }
 
-local c = function(val)
-    return  val ~= nil and val ~= "" and val or nil
-end
 
 function main(argv) 
 --	dump(argv)
@@ -49,9 +45,9 @@ function main(argv)
 
 	
 	local cmd=function(command) 
-		net:write(command.." && echo 'Module_Telnet SoloTesterTrue'\r\n")
+		net:write(command.." && echo 'Module_Telnet SoloMonitoringTrue'\r\n")
 		r=net:read()
-		if not r or not r:find('Module_Telnet SoloTesterTrue') then return nil	end
+		if not r or not r:find('Module_Telnet SoloMonitoringTrue') then return nil	end
 		return r
 	end
 
@@ -59,17 +55,14 @@ function main(argv)
 	net=api:connect()
 	r=perform()
 	
-	if c(argv.data[1]) and  c(argv.data[2]) then
-	    --проверка доступа
-	    if not login()  then return net:error("LOGIN") end
-	end
+	--проверка доступа
+	if not login()  then return net:error("LOGIN") end
 
 	if argv.method == "cmd" then
 	    if not cmd(argv.data[3]) then return net:error("CMD")	end
 	elseif argv.method == "chkwords" then
-	    r = c(argv.data[3]) and cmd(argv.data[3]) or net:read()
+	    r=cmd(argv.data[3])
 	    if not r then return net:error('NIL') end	
-	    print (r)
 	    if argv.data[4] == "1" and not r:find(argv.data[5]) then    return net:error('WORD NOT FOUND') end
 	    if argv.data[4] == "0" and r:find(argv.data[5])  then    return net:error('WORD FOUND') end
 

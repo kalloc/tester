@@ -71,7 +71,7 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
         if (aptr == NULL) return;
     }
     struct hostent * phe[1] = {NULL, NULL}, *he;
-    struct addrttl addrttls;
+    struct ares_addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;
 
     switch (dnstask->role) {
@@ -88,7 +88,12 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
             }
 
             if (ip) {
-                task->Record.IP = ip;
+                if (task->Record.IP != ip) {
+                    task->Record.IP = ip;
+#ifdef CFG_2
+                    task->isCfgChange = 1;
+#endif
+                }
             }
 
             break;

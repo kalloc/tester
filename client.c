@@ -10,17 +10,13 @@ static char *Buffer = NULL;
 static u_int BufferLen = 0;
 
 void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
-    
-    
-    
-    
-    
-    
-    
-    
-    debug("%s:%d -> %02x len in buf %d", ((Server *) arg)->host, ((Server *) arg)->port, what,EVBUFFER_LENGTH(bufferevent_get_input(bev)));
-    
-    if (what & BEV_EVENT_CONNECTED) return;
+
+    debug("%s:%d -> %02x len in buf %d", ((Server *) arg)->host, ((Server *) arg)->port, what, EVBUFFER_LENGTH(bufferevent_get_input(bev)));
+
+    if (what & BEV_EVENT_CONNECTED) {
+        OnBufferedWrite(bev, arg);
+        return;
+    }
     closeConnection((Server *) arg, FALSE);
 }
 
@@ -45,9 +41,6 @@ void openSession(Server *pServer, short action) {
     struct evbuffer *Out = bufferevent_get_output(poll->bev);
     u_char *data = EVBUFFER_DATA(In);
     u_int len = evbuffer_get_length(In);
-/*
-    printf("client.c %s:%d -> %s %s\n", pServer->host, pServer->port, getActionText(action), getStatusText(poll->status));
-*/
     debug("%s:%d -> %s %s", pServer->host, pServer->port, getActionText(action), getStatusText(poll->status));
 
     /*
@@ -56,20 +49,21 @@ void openSession(Server *pServer, short action) {
             return;
         }
      */
-/*
-    if (len) {
-        printf("Client\n---------------------------\n");
-        hexPrint(data, len);
-        printf("--------------------------------\n\n\n");
-    }
-*/
 
     if (action == EV_READ) {
+        /*
+                if (len) {
+                    printf("Client\n---------------------------\n");
+                    hexPrint(data, len);
+                    printf("--------------------------------\n\n\n");
+                }
+         */
+
         genSharedKey(pServer, (u_char *) data);
         poll->status = STATE_SESSION;
-/*
-        len = 32;
-*/
+        /*
+                len = 32;
+         */
         bufferevent_enable(pServer->poll->bev, EV_WRITE);
 
     } else if (action == EV_WRITE) {
@@ -82,12 +76,12 @@ void openSession(Server *pServer, short action) {
                 break;
             case STATE_SESSION:
                 aes_set_key(&ctx, pServer->key.shared, 128);
-/*
-                printf("Client PublicShared\n---------------------------\n");
-                hexPrint(pServer->key.public, 16);
-                hexPrint(pServer->key.shared, 16);
-                printf("--------------------------------\n\n\n");
-*/
+                /*
+                                printf("Client PublicShared\n---------------------------\n");
+                                hexPrint(pServer->key.public, 16);
+                                hexPrint(pServer->key.shared, 16);
+                                printf("--------------------------------\n\n\n");
+                 */
 
                 BufferLen = aes_cbc_encrypt(&ctx, pServer->key.shared + 16, (u_char*) & pServer->session, (u_char *) Buffer, sizeof (struct st_session));
                 evbuffer_add(Out, Buffer, BufferLen);
@@ -125,14 +119,15 @@ void newConnectionTask(Server *pServer) {
 
 
     pServer->poll->bev = bufferevent_socket_new(mainBase, -1, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_socket_connect(pServer->poll->bev, (struct sockaddr *) & sa, sizeof (sa));
+    bufferevent_enable(pServer->poll->bev, EV_WRITE);
     bufferevent_setcb(pServer->poll->bev, OnBufferedRead, OnBufferedWrite, OnBufferedError, pServer);
-    bufferevent_enable(pServer->poll->bev, EV_WRITE | EV_TIMEOUT);
+    bufferevent_socket_connect(pServer->poll->bev, (struct sockaddr *) & sa, sizeof (sa));
 
 
     if (pServer->timeout) {
         timerclear(&tv);
         tv.tv_sec = pServer->timeout;
+        bufferevent_enable(pServer->poll->bev, EV_TIMEOUT);
         bufferevent_set_timeouts(pServer->poll->bev, &tv, &tv);
     }
 
@@ -193,12 +188,12 @@ void timerSendReport(int fd, short action, void *arg) {
     timerclear(&tv);
     tv.tv_sec = pServer->periodReport;
     evtimer_add(&pServer->evReport, &tv);
+    debug("%s:%d -> Report %d, %s %s  [period - %d]", pServer->host, pServer->port,
+            countReport(pServer),
+            getActionText(action), getStatusText(pServer->poll->status),
+            (int) pServer->periodReport);
 
     if (countReport(pServer) > 0) {
-        debug("%s:%d -> Report %d, %s %s  [period - %d]", pServer->host, pServer->port,
-                countReport(pServer),
-                getActionText(action), getStatusText(pServer->poll->status),
-                (int) pServer->periodReport);
 
         pServer->flagSendReport = 1;
 
@@ -277,18 +272,18 @@ int main(int argc, char **argv) {
                 initVerifer();
             }
 
-            if(pServer->periodReportError){
-        	tv.tv_sec = pServer->periodReportError;
-        	evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
-        	evtimer_add(&pServer->evReportError, &tv);
+            if (pServer->periodReportError) {
+                tv.tv_sec = pServer->periodReportError;
+                evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
+                evtimer_add(&pServer->evReportError, &tv);
             }
 
 
-            if(pServer->periodReport){
-        	tv.tv_sec = pServer->periodReport;
-        	evtimer_set(&pServer->evReport, timerSendReport, pServer);
-        	evtimer_add(&pServer->evReport, &tv);
-    	    }
+            if (pServer->periodReport) {
+                tv.tv_sec = pServer->periodReport;
+                evtimer_set(&pServer->evReport, timerSendReport, pServer);
+                evtimer_add(&pServer->evReport, &tv);
+            }
         }
         initReport(pServer);
     }
