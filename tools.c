@@ -1,5 +1,7 @@
 #include "include.h"
-#include "yxml.h"
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 #include <zlib.h>
 #include <ctype.h>
 #define STDOUT
@@ -184,24 +186,28 @@ const char *class_name(int dnsclass) {
     return "(unknown)";
 }
 
-inline const unsigned char *skip_question(const unsigned char *aptr, const unsigned char *abuf, int alen) {
+inline unsigned char *skip_question(const unsigned char *aptr, const unsigned char *abuf, int alen) {
     char *name;
     int status;
+    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     long len;
     status = ares_expand_name(aptr, abuf, alen, &name, &len);
+    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
 
     if (status != ARES_SUCCESS) return NULL;
     aptr += len;
+    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     if (aptr + QFIXEDSZ > abuf + alen) {
         ares_free_string(name);
         return NULL;
     }
     aptr += QFIXEDSZ;
+    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     ares_free_string(name);
     return aptr;
 }
 
-inline int getDNSTypeAfterParseAnswer(const unsigned char *aptr, const unsigned char *abuf, int alen) {
+inline int getDNSTypeAfterParseAnswer(unsigned char *aptr, unsigned char *abuf, int alen) {
     int type, dnsclass, ttl, dlen, status;
     long len;
 
@@ -347,17 +353,17 @@ inline void *getNulledMemory(int size) {
 FILE * fdConfig = NULL;
 struct stat * statConfig = NULL;
 char * bufConfig = 0;
-yxml_t * xml = NULL;
-yxml_t * tester_xml = NULL;
-yxml_t * servers_xml = NULL;
+xmlDocPtr doc = NULL;
+xmlNode *xml = NULL, *tester_xml = NULL, *pxml = NULL;
+static xmlNodeSetPtr servers_xml;
+xmlXPathContextPtr xpathCtx;
+xmlXPathObjectPtr xpathObj;
 
 unsigned int openConfiguration(char *filename) {
-
-
+    Server *pServer;
+    struct timeval tv;
     int status = TRUE;
     const char * pstr;
-    yxml_t * pxml = NULL;
-    yxml_attr_t *xml_attr = NULL;
     int len = 0;
     bzero(&config, sizeof (config));
 
@@ -366,101 +372,85 @@ unsigned int openConfiguration(char *filename) {
 #ifdef DEBUG
     printf(cGREEN"Read Config File\n"cEND);
 #endif
-    if ((stat(filename, statConfig) < 0) or((int) (fdConfig = fopen(filename, "r")) < 0)) {
+    if ((stat(filename, statConfig) < 0)) {
         printf(cRED"ERROR\n"cEND);
         printf(cGREEN"\tunable to load — "cEND""cBLUE"%s"cEND""cGREEN". System error — %s\n\n"cEND, filename, strerror(errno));
         status = FALSE;
     }
 
     if (status) {
-        bufConfig = malloc(statConfig->st_size + 1);
-        bzero(bufConfig, statConfig->st_size + 1);
-        len = (int) fread((void *) bufConfig, statConfig->st_size, 1, fdConfig);
-        xml = yxml_read(bufConfig, &pstr);
+        doc = xmlReadFile(filename, NULL, 0);
 
-        if (xml == NULL) {
+        if (doc == NULL) {
             printf(cRED"ERROR\n"cEND);
             printf(cGREEN"\tunable to parse xml - "cEND""cBLUE"%s"cEND"\n\n", filename);
             status = FALSE;
         }
-        if (strcmp(xml->name, "config")) {
-            status = FALSE;
-        } else {
-            xml = xml->details;
-        }
     }
 
-    if (status) {
+    if (!status) return status;
 
-        for (pxml = xml; pxml != 0; pxml = pxml->next) {
-            if (!strcmp(pxml->name, "tester")) {
-                tester_xml = pxml;
-            } else if (!strcmp(pxml->name, "servers")) {
-                servers_xml = pxml;
+    xpathCtx = xmlXPathNewContext(doc);
+
+    xpathObj = xmlXPathEvalExpression("//config/tester", xpathCtx);
+    if (xpathObj == NULL) {
+        xmlXPathFreeContext(xpathCtx);
+    } else {
+        tester_xml = xpathObj->nodesetval->nodeTab[0];
+        for (pxml = tester_xml->properties; pxml; pxml = pxml->next) {
+            if (pxml->type != XML_ATTRIBUTE_NODE) continue;
+
+            if (!strcmp(pxml->name, "id")) {
+                config.testerid = atoi(pxml->children->content);
+            } else if (!strcmp(pxml->name, "timeout")) {
+                config.timeout = atoi(pxml->children->content);
+            } else if (!strcmp(pxml->name, "maxread")) {
+                config.maxInput = atoi(pxml->children->content);
+            } else if (!strcmp(pxml->name, "path")) {
+                config.lua.path = strdup((const char *) pxml->children->content);
+            } else if (!strcmp(pxml->name, "log")) {
+                config.log = strdup((const char *) pxml->children->content);
+            } else if (!strcmp(pxml->name, "loglevel")) {
+                config.loglevel = atoi(pxml->children->content);
+            } else if (!strcmp(pxml->name, "minrecheck")) {
+                config.minRecheckPeriod = atoi(pxml->children->content);
+            } else if (!strcmp(pxml->name, "minperiod")) {
+                config.minPeriod = atoi(pxml->children->content);
             }
         }
-        if (!tester_xml and !servers_xml) return FALSE;
-
-        for (xml_attr = tester_xml->attrs; xml_attr; xml_attr = xml_attr->next) {
-            if (!strcmp(xml_attr->name, "id")) {
-                config.testerid = atoi(xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "timeout")) {
-                config.timeout = atoi(xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "maxread")) {
-                config.maxInput = atoi(xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "path")) {
-                config.lua.path = strdup((const char *) xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "log")) {
-                config.log = strdup((const char *) xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "loglevel")) {
-                config.loglevel = atoi(xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "minrecheck")) {
-                config.minRecheckPeriod = atoi(xml_attr->value);
-            } else if (!strcmp(xml_attr->name, "minperiod")) {
-                config.minPeriod = atoi(xml_attr->value);
-            }
-
-        }
+        xmlXPathFreeObject(xpathObj);
     }
 
-    return status;
-}
+    xpathObj = xmlXPathEvalExpression("//config/servers/server", xpathCtx);
+    if (xpathObj == NULL) {
+        xmlXPathFreeContext(xpathCtx);
+    } else {
+        servers_xml = xpathObj->nodesetval;
+        len = servers_xml->nodeNr;
 
-void closeConfiguration() {
-    if (bufConfig) free(bufConfig);
-    if (fdConfig) fclose(fdConfig);
-    if (xml) yxml_free(xml);
-    free(statConfig);
-}
+        for (; len > 0; len--) {
+            pServer = getNulledMemory(sizeof (*pServer));
+            pServer->poll = getNulledMemory(sizeof (struct Poll));
+            timerclear(&tv);
 
-void loadServerFromConfiguration(Server *pServer, u32 skip) {
-
-    yxml_t * pxml = NULL;
-    yxml_attr_t *xml_attr = NULL;
-    char key[50];
-    u8 count = 0;
-
-    for (pxml = servers_xml->details; pxml and count <= skip; pxml = pxml->next, count++) {
-        if (!strcmp(pxml->name, "server")) {
-            if (count < skip) continue;
-            //извлекаем host и port
-            for (xml_attr = pxml->attrs; xml_attr; xml_attr = xml_attr->next) {
+            for (pxml = servers_xml->nodeTab[len - 1]->properties; pxml; pxml = pxml->next) {
+                if (pxml->type != XML_ATTRIBUTE_NODE) continue;
 
 
-                if (!strcmp(xml_attr->name, "host")) {
-                    pServer->host = strdup((const char *) xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "port")) {
-                    pServer->port = atoi(xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "key")) {
-                    snprintf(pServer->session.password, 48, "%s", xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "keyRecv")) {
-                    snprintf(pServer->passwordRecv, 48, "%s", xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "timeout")) {
-                    pServer->timeout = atoi(xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "verifer")) {
+                if (!strcmp(pxml->name, "host")) {
+                    pServer->host = strdup((const char *) pxml->children->content);
+                } else if (!strcmp(pxml->name, "port")) {
+                    pServer->port = atoi(pxml->children->content);
+                } else if (!strcmp(pxml->name, "key")) {
+                    snprintf(pServer->session.password, 48, "%s", pxml->children->content);
+                } else if (!strcmp(pxml->name, "keyRecv")) {
+                    snprintf(pServer->passwordRecv, 48, "%s", pxml->children->content);
+                } else if (!strcmp(pxml->name, "timeout")) {
+                    pServer->timeout = atoi(pxml->children->content);
+                } else if (!strcmp(pxml->name, "verifer")) {
                     config.pVeriferDC = pServer;
-                } else if (!strcmp(xml_attr->name, "type")) {
-                    if (!strcmp(xml_attr->value, "storage")) {
+                } else if (!strcmp(pxml->name, "type")) {
+                    if (!strcmp(pxml->children->content, "storage")) {
                         pServer->isSC = 1;
                         if (config.pServerSC) {
 
@@ -470,7 +460,7 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
 
                         }
                         config.pServerSC = pServer;
-                    } else if (!strcmp(xml_attr->value, "verifer")) {
+                    } else if (!strcmp(pxml->children->content, "verifer")) {
                         pServer->isVerifer = 1;
                         if (config.pVerifer) {
 
@@ -480,17 +470,127 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
 
                         }
                         config.pVerifer = pServer;
-                    } else if (!strcmp(xml_attr->value, "data")) {
+                    } else if (!strcmp(pxml->children->content, "data")) {
                         pServer->isDC = 1;
                     }
-                } else if (!strcmp(xml_attr->name, "periodRetrieve")) {
-                    pServer->periodRetrieve = atoi(xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "periodReport")) {
-                    pServer->periodReport = atoi(xml_attr->value);
-                } else if (!strcmp(xml_attr->name, "periodReportError")) {
-                    pServer->periodReportError = atoi(xml_attr->value);
+                } else if (!strcmp(pxml->name, "periodRetrieve")) {
+                    pServer->periodRetrieve = atoi(pxml->children->content);
+                } else if (!strcmp(pxml->name, "periodReport")) {
+                    pServer->periodReport = atoi(pxml->children->content);
+                } else if (!strcmp(pxml->name, "periodReportError")) {
+                    pServer->periodReportError = atoi(pxml->children->content);
                 }
             }
+
+            if (!pServer->port) {
+                free(pServer->poll);
+                free(pServer);
+                break;
+            } else {
+
+                if (pServer->isDC) {
+                    evtimer_set(&pServer->evConfig, timerRetrieveTask, pServer);
+                    evtimer_add(&pServer->evConfig, &tv);
+                }
+
+                if (pServer->isVerifer) {
+                    initVerifer();
+                }
+
+                if (pServer->periodReportError) {
+                    tv.tv_sec = pServer->periodReportError;
+                    evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
+                    evtimer_add(&pServer->evReportError, &tv);
+                }
+
+
+                if (pServer->periodReport) {
+                    tv.tv_sec = pServer->periodReport;
+                    evtimer_set(&pServer->evReport, timerSendReport, pServer);
+                    evtimer_add(&pServer->evReport, &tv);
+                }
+            }
+            initReport(pServer);
+
+        }
+    }
+    xmlXPathFreeObject(xpathObj);
+
+    if (!tester_xml or !servers_xml) return FALSE;
+
+
+
+
+    return status;
+}
+
+void closeConfiguration() {
+    if (bufConfig) free(bufConfig);
+    if (fdConfig) fclose(fdConfig);
+    if (doc) xmlFreeDoc(doc);
+    free(statConfig);
+}
+
+void loadServerFromConfiguration(Server *pServer, u32 skip) {
+
+    char key[50];
+    u8 count = 0;
+
+
+    for (pxml = servers_xml->nodeTab[count]; servers_xml->nodeMax > count and count <= skip; pxml = servers_xml->nodeTab[count], count++) {
+        if (!strcmp(pxml->name, "server")) {
+            if (count < skip) continue;
+            //извлекаем host и port
+            /*
+                             for (pxml = pxml->attrs; pxml; pxml = pxml->next) {
+
+
+                                if (!strcmp(pxml->name, "host")) {
+                                    pServer->host = strdup((const char *) pxml->children->content);
+                                } else if (!strcmp(pxml->name, "port")) {
+                                    pServer->port = atoi(pxml->children->content);
+                                } else if (!strcmp(pxml->name, "key")) {
+                                    snprintf(pServer->session.password, 48, "%s", pxml->children->content);
+                                } else if (!strcmp(pxml->name, "keyRecv")) {
+                                    snprintf(pServer->passwordRecv, 48, "%s", pxml->children->content);
+                                } else if (!strcmp(pxml->name, "timeout")) {
+                                    pServer->timeout = atoi(pxml->children->content);
+                                } else if (!strcmp(pxml->name, "verifer")) {
+                                    config.pVeriferDC = pServer;
+                                } else if (!strcmp(pxml->name, "type")) {
+                                    if (!strcmp(pxml->children->content, "storage")) {
+                                        pServer->isSC = 1;
+                                        if (config.pServerSC) {
+
+                                            printf(cRED"ERROR\n"cEND);
+                                            printf(cGREEN"\t Only one StorageCenter Server in config.xml - "cEND"\n\n");
+                                            exit(0);
+
+                                        }
+                                        config.pServerSC = pServer;
+                                    } else if (!strcmp(pxml->children->content, "verifer")) {
+                                        pServer->isVerifer = 1;
+                                        if (config.pVerifer) {
+
+                                            printf(cRED"ERROR\n"cEND);
+                                            printf(cGREEN"\t Only one Verifer defined in config.xml - "cEND"\n\n");
+                                            exit(0);
+
+                                        }
+                                        config.pVerifer = pServer;
+                                    } else if (!strcmp(pxml->children->content, "data")) {
+                                        pServer->isDC = 1;
+                                    }
+                                } else if (!strcmp(pxml->name, "periodRetrieve")) {
+                                    pServer->periodRetrieve = atoi(pxml->children->content);
+                                } else if (!strcmp(pxml->name, "periodReport")) {
+                                    pServer->periodReport = atoi(pxml->children->content);
+                                } else if (!strcmp(pxml->name, "periodReportError")) {
+                                    pServer->periodReportError = atoi(pxml->children->content);
+                                }
+                            }
+                        }
+             */
         }
     }
 }

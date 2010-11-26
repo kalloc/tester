@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configurationDescriptor version="62">
+<configurationDescriptor version="69">
   <logicalFolder name="root" displayName="root" projectFiles="true">
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
@@ -23,8 +23,6 @@
                        projectFiles="true">
           <itemPath>curve25519-donna/curve25519-donna.c</itemPath>
         </logicalFolder>
-        <itemPath>yxml.c</itemPath>
-        <itemPath>yxml.h</itemPath>
       </logicalFolder>
       <logicalFolder name="f2" displayName="test&apos;s" projectFiles="true">
         <itemPath>test_icmp.c</itemPath>
@@ -62,28 +60,32 @@
       </toolsSet>
       <compileType>
         <cTool>
-          <developmentMode>2</developmentMode>
           <commandlineTool>gcc</commandlineTool>
           <incDir>
             <pElem>/opt/tester/include</pElem>
+            <pElem>/usr/include/libxml2</pElem>
           </incDir>
-          <commandLine> </commandLine>
+          <commandLine>-I/opt/tester/include/ -I/usr/include/libxml2/</commandLine>
           <warningLevel>2</warningLevel>
         </cTool>
         <ccTool>
           <commandlineTool>gcc</commandlineTool>
         </ccTool>
         <linkerTool>
+          <linkerAddLib>
+            <pElem>/opt/tester/lib/</pElem>
+          </linkerAddLib>
           <linkerLibItems>
             <linkerLibLibItem>z</linkerLibLibItem>
             <linkerLibLibItem>ssl</linkerLibLibItem>
             <linkerLibStdlibItem>Mathematics</linkerLibStdlibItem>
-            <linkerLibLibItem>cares</linkerLibLibItem>
             <linkerLibFileItem>/opt/tester/lib/liblua.a</linkerLibFileItem>
             <linkerLibFileItem>/opt/tester/lib/libevent.a</linkerLibFileItem>
             <linkerLibStdlibItem>PosixThreads</linkerLibStdlibItem>
             <linkerLibLibItem>rt</linkerLibLibItem>
             <linkerLibFileItem>/opt/tester/lib/libevent_pthreads.a</linkerLibFileItem>
+            <linkerLibFileItem>/opt/tester/lib/libcares.a</linkerLibFileItem>
+            <linkerLibLibItem>xml2</linkerLibLibItem>
           </linkerLibItems>
           <commandLine> </commandLine>
         </linkerTool>
@@ -105,10 +107,6 @@
         <fortranCompilerTool>
           <developmentMode>5</developmentMode>
         </fortranCompilerTool>
-        <linkerTool>
-          <linkerLibItems>
-          </linkerLibItems>
-        </linkerTool>
       </compileType>
     </conf>
   </confs>

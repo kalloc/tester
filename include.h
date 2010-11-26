@@ -1,4 +1,5 @@
 #define _GNU_SOURCE     /* Expose declaration of tdestroy() */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,9 +28,9 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/ip.h>
 
-#include <lua5.1/lua.h>
-#include <lua5.1/lauxlib.h>
-#include <lua5.1/lualib.h>
+#include <lua/lua.h>
+#include <lua/lauxlib.h>
+#include <lua/lualib.h>
 
 
 #include <ares.h>
@@ -56,7 +57,6 @@
  *
  */
 
-#pragma pack(1)
 
 #define SOCK_RC_TIMEOUT               -1
 #define SOCK_RC_AUTH_FAILURE          -2  // Ошибка авторизации
@@ -198,10 +198,11 @@ struct nv {
 
 #ifdef DEBUG
 #define debug(...) loger(__FILE__,__FUNCTION__,LOG_DEBUG, __VA_ARGS__);
+#else
+#define debug(...)
+#endif
 #define warn(...) loger(__FILE__,__FUNCTION__,LOG_WARN, __VA_ARGS__);
 #define notice(...) loger(__FILE__,__FUNCTION__,LOG_NOTICE, __VA_ARGS__);
-#endif
-
 #define info(...) loger(NULL,NULL,LOG_INFO, __VA_ARGS__);
 
 #define RemoteToLocalTime(x)  (x+config.TimeStabilization)
@@ -217,15 +218,20 @@ struct nv {
             tv.tv_usec = ms * 1000 / 2;\
         }
 
-typedef struct {
-    char *ptr;
-    u_int len;
-} Data;
+//typedef struct {
+//    char *ptr;
+//    u_int len;
+//} Data;
+
 
 struct st_session {
     char garbage[16]; // заполняется случайными данными
     char password[48]; // текстовый нуль-терминированный пароль сессии
 };
+
+
+#pragma pack(push)  /* push current alignment to stack */
+#pragma pack(1)     /* set alignment to 1 byte boundary */
 
 struct Request {
     //1. Описатель длины/целостности пакета
@@ -245,15 +251,7 @@ struct Request {
     char *Data;
 };
 
-struct _Tester_Cfg_AddData {
-    u32 ServerTime; // Сервер сообщает свое текущее время. unixtime utc
-#ifdef CFG_2
-    u32 CfgRereadPeriod; // Tester reread config period
-    u32 BODMaxAge; // Operdata DB cache MaxAge
-    u32 CHGMaxAge; // CHG DB cache MaxAge
-#endif
 
-};
 
 struct _Tester_Cfg_Record {
     u32 LObjId; // id объекта тестирования
@@ -276,6 +274,17 @@ struct _Tester_Cfg_Record {
     u32 ConfigLen;
 };
 
+
+struct _Tester_Cfg_AddData {
+    u32 ServerTime; // Сервер сообщает свое текущее время. unixtime utc
+#ifdef CFG_2
+    u32 CfgRereadPeriod; // Tester reread config period
+    u32 BODMaxAge; // Operdata DB cache MaxAge
+    u32 CHGMaxAge; // CHG DB cache MaxAge
+#endif
+
+};
+
 struct _Verifer_Cfg_Record {
     u32 LObjId; // id объекта тестирования
 
@@ -291,11 +300,6 @@ struct _Verifer_Cfg_Record {
     u8 CFGVer;
 #endif
     u32 ConfigLen;
-};
-
-struct cond_wait {
-    pthread_mutex_t lock;
-    pthread_cond_t cond;
 };
 
 struct _chg_tcp {
@@ -328,6 +332,15 @@ struct _chg_ping {
     u8 CFGVer;
 #endif
 };
+
+#pragma pack(pop)
+
+
+struct cond_wait {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+};
+
 
 struct Poll {
     struct event ev;
@@ -534,10 +547,12 @@ void closeConnection(Server *, short);
 void initToolsPtr();
 void freeToolsPtr();
 void hexPrint(char *, int);
+inline unsigned char *skip_question(const unsigned char *, const unsigned char *, int );
 unsigned char * bin2hex(unsigned char *bin, int len);
 unsigned char * genSharedKey(Server *, unsigned char *);
 unsigned char * genPublicKey(Server *);
 int in_cksum(u_short *, int);
+void loger(char *, char *, int , const char *, ...) ;
 #define stack(L) stackDump(L,__LINE__)
 void loadServerFromConfiguration(Server *, u32);
 
@@ -629,3 +644,8 @@ struct event_base *getDNSBase();
 void timerResolv(int, short, void *);
 struct event_base *getResolvBase();
 
+
+
+//client
+void timerSendReportError(int , short , void *);
+void timerSendReport(int , short , void *);

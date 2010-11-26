@@ -21,12 +21,18 @@ void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
 }
 
 void OnBufferedWrite(struct bufferevent *bev, void *arg) {
+
     if (((Server *) arg)->poll->status != STATE_CONNECTED) {
         openSession((Server *) arg, EV_WRITE);
     }
 }
 
 void OnBufferedRead(struct bufferevent *bev, void *arg) {
+    struct evbuffer *buffer = EVBUFFER_INPUT(bev);
+    u_char *data = EVBUFFER_DATA(buffer);
+    u_int len = EVBUFFER_LENGTH(buffer);
+    
+    debug("%d %d",evbuffer_get_contiguous_space(buffer),len);
     if (((Server *) arg)->poll->status == STATE_CONNECTED) {
         onEventFromServer((Server *) arg, EV_READ);
     } else {
@@ -119,8 +125,8 @@ void newConnectionTask(Server *pServer) {
 
 
     pServer->poll->bev = bufferevent_socket_new(mainBase, -1, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_enable(pServer->poll->bev, EV_WRITE);
     bufferevent_setcb(pServer->poll->bev, OnBufferedRead, OnBufferedWrite, OnBufferedError, pServer);
+    bufferevent_enable(pServer->poll->bev, EV_WRITE);
     bufferevent_socket_connect(pServer->poll->bev, (struct sockaddr *) & sa, sizeof (sa));
 
 
@@ -223,9 +229,7 @@ void freePtr() {
 int main(int argc, char **argv) {
 
     initMainVars();
-    Server *pServer;
     int skip = 0;
-    timerclear(&tv);
     // возможно лучше проверять не сдох ли fd
     struct sigaction IgnoreYourSignal;
     sigemptyset(&IgnoreYourSignal.sa_mask);
@@ -244,6 +248,8 @@ int main(int argc, char **argv) {
 
 
     if (!openConfiguration(argv[1])) {
+        printf(cRED"ERROR: incorect config file\n"cEND);
+        printf(cGREEN"\tDescription:"cEND""cBLUE" nil server loaded\n\n"cEND);
         exit(FALSE);
     }
 
@@ -252,46 +258,6 @@ int main(int argc, char **argv) {
     evthread_make_base_notifiable(mainBase);
 
     initPtr();
-    while (1) {
-        pServer = getNulledMemory(sizeof (*pServer));
-        pServer->poll = getNulledMemory(sizeof (struct Poll));
-        loadServerFromConfiguration(pServer, skip++);
-
-        if (!pServer->port) {
-            free(pServer->poll);
-            free(pServer);
-            break;
-        } else {
-
-            if (pServer->isDC) {
-                evtimer_set(&pServer->evConfig, timerRetrieveTask, pServer);
-                evtimer_add(&pServer->evConfig, &tv);
-            }
-
-            if (pServer->isVerifer) {
-                initVerifer();
-            }
-
-            if (pServer->periodReportError) {
-                tv.tv_sec = pServer->periodReportError;
-                evtimer_set(&pServer->evReportError, timerSendReportError, pServer);
-                evtimer_add(&pServer->evReportError, &tv);
-            }
-
-
-            if (pServer->periodReport) {
-                tv.tv_sec = pServer->periodReport;
-                evtimer_set(&pServer->evReport, timerSendReport, pServer);
-                evtimer_add(&pServer->evReport, &tv);
-            }
-        }
-        initReport(pServer);
-    }
-    if (skip == 0) {
-        printf(cRED"ERROR: incorect config file\n"cEND);
-        printf(cGREEN"\tDescription:"cEND""cBLUE" nil server loaded\n\n"cEND);
-        exit(FALSE);
-    }
 
 
     event_dispatch();

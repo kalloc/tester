@@ -10,6 +10,8 @@
 # Environment
 MKDIR=mkdir
 CP=cp
+GREP=grep
+NM=nm
 CCADMIN=CCadmin
 RANLIB=ranlib
 CC=gcc
@@ -31,21 +33,21 @@ OBJECTDIR=build/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/tester.o \
+	${OBJECTDIR}/client.o \
+	${OBJECTDIR}/curve25519-donna/curve25519-donna.o \
+	${OBJECTDIR}/verifer.o \
+	${OBJECTDIR}/test_lookup.o \
+	${OBJECTDIR}/resolv.o \
 	${OBJECTDIR}/report.o \
 	${OBJECTDIR}/test_lua.o \
-	${OBJECTDIR}/yxml.o \
-	${OBJECTDIR}/test_lookup.o \
-	${OBJECTDIR}/verifer.o \
-	${OBJECTDIR}/aes/aes.o \
-	${OBJECTDIR}/tester.o \
-	${OBJECTDIR}/resolv.o \
-	${OBJECTDIR}/test_icmp.o \
 	${OBJECTDIR}/tools.o \
-	${OBJECTDIR}/client.o \
-	${OBJECTDIR}/test_tcp.o \
-	${OBJECTDIR}/process.o \
+	${OBJECTDIR}/aes/aes.o \
 	${OBJECTDIR}/statistics.o \
-	${OBJECTDIR}/curve25519-donna/curve25519-donna.o
+	${OBJECTDIR}/process.o \
+	${OBJECTDIR}/test_icmp.o \
+	${OBJECTDIR}/test_tcp.o
+
 
 # C Compiler Flags
 CFLAGS=
@@ -65,86 +67,81 @@ LDLIBSOPTIONS=
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	${MAKE}  -f nbproject/Makefile-Release.mk dist/Release/GNU-Linux-x86/tester
+	"${MAKE}"  -f nbproject/Makefile-Release.mk dist/Release/GNU-Linux-x86/tester
 
 dist/Release/GNU-Linux-x86/tester: ${OBJECTFILES}
 	${MKDIR} -p dist/Release/GNU-Linux-x86
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/tester ${OBJECTFILES} ${LDLIBSOPTIONS} 
 
-${OBJECTDIR}/report.o: nbproject/Makefile-${CND_CONF}.mk report.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/report.o report.c
-
-${OBJECTDIR}/test_lua.o: nbproject/Makefile-${CND_CONF}.mk test_lua.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lua.o test_lua.c
-
-${OBJECTDIR}/yxml.o: nbproject/Makefile-${CND_CONF}.mk yxml.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/yxml.o yxml.c
-
-${OBJECTDIR}/test_lookup.o: nbproject/Makefile-${CND_CONF}.mk test_lookup.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lookup.o test_lookup.c
-
-${OBJECTDIR}/verifer.o: nbproject/Makefile-${CND_CONF}.mk verifer.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/verifer.o verifer.c
-
-${OBJECTDIR}/aes/aes.o: nbproject/Makefile-${CND_CONF}.mk aes/aes.c 
-	${MKDIR} -p ${OBJECTDIR}/aes
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/aes/aes.o aes/aes.c
-
-${OBJECTDIR}/tester.o: nbproject/Makefile-${CND_CONF}.mk tester.c 
+${OBJECTDIR}/tester.o: tester.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/tester.o tester.c
 
-${OBJECTDIR}/resolv.o: nbproject/Makefile-${CND_CONF}.mk resolv.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/resolv.o resolv.c
-
-${OBJECTDIR}/test_icmp.o: nbproject/Makefile-${CND_CONF}.mk test_icmp.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_icmp.o test_icmp.c
-
-${OBJECTDIR}/tools.o: nbproject/Makefile-${CND_CONF}.mk tools.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/tools.o tools.c
-
-${OBJECTDIR}/client.o: nbproject/Makefile-${CND_CONF}.mk client.c 
+${OBJECTDIR}/client.o: client.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/client.o client.c
 
-${OBJECTDIR}/test_tcp.o: nbproject/Makefile-${CND_CONF}.mk test_tcp.c 
+${OBJECTDIR}/curve25519-donna/curve25519-donna.o: curve25519-donna/curve25519-donna.c 
+	${MKDIR} -p ${OBJECTDIR}/curve25519-donna
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/curve25519-donna/curve25519-donna.o curve25519-donna/curve25519-donna.c
+
+${OBJECTDIR}/verifer.o: verifer.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_tcp.o test_tcp.c
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/verifer.o verifer.c
 
-${OBJECTDIR}/process.o: nbproject/Makefile-${CND_CONF}.mk process.c 
+${OBJECTDIR}/test_lookup.o: test_lookup.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/process.o process.c
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lookup.o test_lookup.c
 
-${OBJECTDIR}/statistics.o: nbproject/Makefile-${CND_CONF}.mk statistics.c 
+${OBJECTDIR}/resolv.o: resolv.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/resolv.o resolv.c
+
+${OBJECTDIR}/report.o: report.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/report.o report.c
+
+${OBJECTDIR}/test_lua.o: test_lua.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_lua.o test_lua.c
+
+${OBJECTDIR}/tools.o: tools.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/tools.o tools.c
+
+${OBJECTDIR}/aes/aes.o: aes/aes.c 
+	${MKDIR} -p ${OBJECTDIR}/aes
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/aes/aes.o aes/aes.c
+
+${OBJECTDIR}/statistics.o: statistics.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/statistics.o statistics.c
 
-${OBJECTDIR}/curve25519-donna/curve25519-donna.o: nbproject/Makefile-${CND_CONF}.mk curve25519-donna/curve25519-donna.c 
-	${MKDIR} -p ${OBJECTDIR}/curve25519-donna
+${OBJECTDIR}/process.o: process.c 
+	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/curve25519-donna/curve25519-donna.o curve25519-donna/curve25519-donna.c
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/process.o process.c
+
+${OBJECTDIR}/test_icmp.o: test_icmp.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_icmp.o test_icmp.c
+
+${OBJECTDIR}/test_tcp.o: test_tcp.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/test_tcp.o test_tcp.c
 
 # Subprojects
 .build-subprojects:

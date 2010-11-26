@@ -27,11 +27,14 @@ void OnEventResolv(int fd, short event, void *arg) {
     }
 }
 
+
+
 void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen) {
     struct DNSTask *dnstask = (struct DNSTask *) arg;
     struct Task *task = (struct Task *) dnstask->task;
     char *query;
-    int id, qr, opcode, aa, tc, rd, ra, rcode, len;
+    int id, qr, opcode, aa, tc, rd, ra, rcode;
+    long len;
     u32 ip = 0;
     dnstask->isNeed = 0;
     unsigned int qdcount, ancount, nscount, arcount, i;
@@ -62,14 +65,17 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
     ancount = DNS_HEADER_ANCOUNT(abuf);
     nscount = DNS_HEADER_NSCOUNT(abuf);
     arcount = DNS_HEADER_ARCOUNT(abuf);
-
     aptr = abuf + HFIXEDSZ;
+    printf("%p %p %d\n", aptr, abuf, aptr - abuf);
 
     ares_expand_name(aptr, abuf, alen, &query, &len);
     for (i = 0; i < qdcount; i++) {
-        aptr = skip_question(aptr, abuf, alen);
+        printf("    %p %p %d\n", aptr, abuf, aptr - abuf);
+        aptr = skip_question(&aptr, abuf, alen);
+        printf("    %p %p %d\n", aptr, abuf, aptr - abuf);
         if (aptr == NULL) return;
     }
+    printf("%p %p %d\n", aptr, abuf, aptr - abuf);
     struct hostent * phe[1] = {NULL, NULL}, *he;
     struct ares_addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;

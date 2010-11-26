@@ -131,7 +131,7 @@ int luaL_InitEventNet(lua_State * L) {
     lua_pushvalue(L, -3);
     lua_rawset(L, -3);
 
-    lua_pop(L, 2);
+    lua_pop(L, 3);
 
     return 1; /* return methods on the stack */
 }
@@ -163,7 +163,7 @@ void LoadLuaFromDisk() {
                 luaopen_string(lua->state);
                 luaopen_debug(lua->state);
                 luaopen_table(lua->state);
-                lua_pop(lua->state, 6);
+                lua_pop(lua->state, 9);
                 luaL_InitEventNet(lua->state);
                 luaL_loadfile(lua->state, filenameWithPath);
                 lua_pcall(lua->state, 0, 0, 0);
@@ -180,6 +180,7 @@ void LoadLuaFromDisk() {
                  */
                 //lua_pop(lua->L, 2);
                 pthread_create(&lua->threads, NULL, (void*) initLuaThread, lua);
+                //                exit(0);
 
 
             }
@@ -195,6 +196,7 @@ int getLuaModuleId(const char* filename) {
 
     int ModType = 0;
     len = strlen(filename);
+    //убеждаемся что это файл  точно по формату module_*.lua ;)
     if (
             len > (sizeof ("module_") + sizeof (".lua") - 1) and
             !memcmp(filename, "module_", sizeof ("module_") - 1) and
@@ -203,19 +205,20 @@ int getLuaModuleId(const char* filename) {
 
         lua_State *L = lua_open();
         luaopen_base(L);
-        //убеждаемся что это файл  точно по формату module_*.lua ;)
-        lua_pop(L, 2);
+        lua_pop(L, 4);
         luaL_loadfile(L, filenameWithPath);
         lua_pcall(L, 0, 0, 0);
         lua_getglobal(L, "module");
         if (lua_istable(L, 1)) {
+
             lua_getfield(L, 1, "id");
-            if (lua_isnumber(L, -1)) {
+            if (lua_isnumber(L, 2)) {
                 ModType = lua_tonumber(L, -1);
             }
-            lua_pop(L, 2);
+            lua_pop(L, 1);
         }
         lua_pop(L, 1);
+
         lua_close(L);
     }
     return ModType;
@@ -819,11 +822,11 @@ static int LuaNetRead(lua_State * L) {
 static int LuaNetWrite(lua_State * L) {
     int len = 40000;
 
+    char *ptr = lua_tolstring(L, 2, (size_t *) & len);
 
     struct Task *task = checkLuaNet(L, 1);
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
 
-    const char *ptr = lua_tolstring(L, 2, (size_t *) & len);
     task->code = STATE_WRITE;
     debug("%d bytes %p %d %p %p %s", len, task, task->LObjId, task, L, task->isSub ? "is sub" : "");
 
@@ -923,7 +926,7 @@ void openLuaConnection(struct Task * task) {
     gettimeofday(&poll->CheckDt, NULL);
 
     if (luaModule == NULL) {
-        debug("Unable to load module %s",getModuleText(task->Record.ModType));
+        debug("Unable to load module %s", getModuleText(task->Record.ModType));
         task->code = STATE_ERROR;
         task->callback(task);
         evtimer_del(&task->time_ev);

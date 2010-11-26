@@ -67,16 +67,16 @@ void RequestSend(Server *pServer, u32 type, struct evbuffer *evSend) {
 
 #endif
     pReq->sizes.crc = crc32(0xffffffff, (const Bytef *) pReq, evbuffer_get_length(evReq));
-/*
-    #ifdef DEBUG
-        printf(cBLUE"\treq->sizes.CmprSize=%d"cEND, pReq->sizes.CmprSize);
-        printf(cBLUE"\treq->sizes.UncmprSize=%d"cEND, pReq->sizes.UncmprSize);
-        printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
-    #ifdef HEXPRINT
-        hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
-    #endif
-    #endif
-*/
+    /*
+        #ifdef DEBUG
+            printf(cBLUE"\treq->sizes.CmprSize=%d"cEND, pReq->sizes.CmprSize);
+            printf(cBLUE"\treq->sizes.UncmprSize=%d"cEND, pReq->sizes.UncmprSize);
+            printf(cBLUE"\treq->sizes.crc=0x%08x\n"cEND, pReq->sizes.crc);
+        #ifdef HEXPRINT
+            hexPrint((char *) EVBUFFER_DATA(evReq), evbuffer_get_length(evReq));
+        #endif
+        #endif
+     */
 
     bufferevent_write_buffer(poll->bev, evReq);
     evbuffer_free(evReq);
@@ -92,7 +92,7 @@ void loadTask(Server *pServer) {
     RequestSend(pServer, MODULE_READ_OBJECTS_CFG, evBuffer);
 };
 
-void onLoadTask(Server *pServer) {
+int onLoadTask(Server *pServer) {
     struct Poll *poll = pServer->poll;
     struct _Tester_Cfg_AddData *Cfg_AddData;
     struct _Tester_Cfg_Record *Cfg_Record;
@@ -102,13 +102,13 @@ void onLoadTask(Server *pServer) {
     u_int len = EVBUFFER_LENGTH(buffer);
     char *ptr = 0;
     u32 crc = 0;
-
     pReq = (struct Request *) data;
     if (len < Size_Request) {
-        return;
+        return TRUE;
     }
     if (pReq->sizes.UncmprSize < Size_Request_hdr or pReq->sizes.UncmprSize > MAX_UNCMPR or(pReq->sizes.CmprSize > 0 and pReq->sizes.CmprSize > MAX_CMPR)) {
-        return;
+        warn("mismatch length of packet");
+        return TRUE;
     }
 
 
@@ -116,7 +116,8 @@ void onLoadTask(Server *pServer) {
     pReq->sizes.crc = 0;
 
     if (crc32(0xffffffff, (const Bytef *) pReq, (pReq->sizes.CmprSize > 0 ? pReq->sizes.CmprSize : pReq->sizes.UncmprSize) + Size_Request_sizes) != crc) {
-        return;
+        pReq->sizes.crc = crc;
+        return FALSE;
     }
 
     if (pReq->sizes.CmprSize) {
@@ -126,12 +127,10 @@ void onLoadTask(Server *pServer) {
         memcpy(ptr, data, Size_Request_sizes);
         pReqCmpr = (struct Request *) ptr;
 
-
         uncompress((Bytef *) (ptr + Size_Request_sizes), (uLongf *) & pReqCmpr->sizes.UncmprSize, (const Bytef *) & pReq->hdr, (uLongf) pReq->sizes.CmprSize);
 
-
         if (pReqCmpr->sizes.UncmprSize != pReq->sizes.UncmprSize) {
-            return;
+            return TRUE;
         }
         pReq = pReqCmpr;
 
@@ -139,7 +138,7 @@ void onLoadTask(Server *pServer) {
 
     Cfg_AddData = (struct _Tester_Cfg_AddData *) & pReq->Data;
     if (Cfg_AddData->CfgRereadPeriod != pServer->periodRetrieve) {
-        debug("set new period reread config from %d to %d", pServer->periodRetrieve,Cfg_AddData->CfgRereadPeriod);
+        debug("set new period reread config from %d to %d", pServer->periodRetrieve, Cfg_AddData->CfgRereadPeriod);
         pServer->periodRetrieve = Cfg_AddData->CfgRereadPeriod;
         tv.tv_usec = 0;
         tv.tv_sec = pServer->periodRetrieve;
@@ -185,7 +184,7 @@ void onLoadTask(Server *pServer) {
         debug("\tТаймаут для проверки = %d", Cfg_Record->TimeOut);
         debug("\tРазмер дополнительных данных = %d", Cfg_Record->ConfigLen);
 #endif
-        if (Cfg_Record->ConfigLen > RecordsLen) return;
+        if (Cfg_Record->ConfigLen > RecordsLen) return TRUE;
 
         newShift = Cfg_Record->NextCheckDt % Cfg_Record->CheckPeriod;
         Cfg_Record->NextCheckDt = ((tv.tv_sec / Cfg_Record->CheckPeriod) * Cfg_Record->CheckPeriod) + RemoteToLocalTime(Cfg_Record->NextCheckDt) % Cfg_Record->CheckPeriod;
@@ -214,6 +213,7 @@ void onLoadTask(Server *pServer) {
     if (pReq->sizes.CmprSize > 0) {
         free(ptr);
     }
+    return TRUE;
 
 }
 
@@ -227,12 +227,13 @@ void onEventFromServer(Server *pServer, short action) {
         if (data[0] == '-')
             onErrorFromServer(pServer, atoi((char *) data));
     } else {
-
         switch (poll->type) {
             case MODE_SERVER:
+                if (pServer->flagRetriveConfig) {
+                    if (!onLoadTask(pServer)) return;
+                }
                 if (pServer->flagSendReport) SendReport(pServer);
                 if (pServer->flagSendReportError) SendReportError(pServer);
-                if (pServer->flagRetriveConfig) onLoadTask(pServer);
                 break;
         }
     }
