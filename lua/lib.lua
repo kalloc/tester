@@ -82,7 +82,6 @@ function api:error(code)
 end
 function api:connect(host,port) 
 	local o={}
-	print(host)
 	o.sock=socket.connect(host or argv.host,port or argv.port)
 	o.sock:settimeout(1)
 	setmetatable(o, self)

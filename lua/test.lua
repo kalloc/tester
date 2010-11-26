@@ -7,6 +7,7 @@ local id="66666666"
 
 local AllTest={
     http={
+	disable=true,
 	default={host="mycurriencies.net",port=80,id=id},
 	task={
 --	    "1518chkwords11/111212Registration210ISO-8859-1",
@@ -21,6 +22,7 @@ local AllTest={
     },
 
     ftp={
+	disable=true,
 	default={host="87.236.184.102",port=21,id=id},
 	task={
 		"1314auth1010",
@@ -35,14 +37,16 @@ local AllTest={
     },
 
     smtp={
-	default={host="mail.masterday.ru",port=25,id=id},
+	disable=false,
+	default={host="smtp.yandex.ru",port=25,id=id},
 	task={
 --		"1314auth220solotester@n1ck.name1812341234",
 --		"1314auth217test@masterday.ru14test"
---		"1314auth217test@masterday.ru14test"
+		"1314auth225alexander.atlex@yandex.ru212JHdb6wbsFas8"
 	}
     },
     pop3={
+	disable=true,
 	default={host="2kphoto.ru",port=110,id=id},
 	task={
 ---		"1718chkwords215test+2kphoto.ru212Zkwfx=q@yb<s222ivan@solomonitoring.ru216тест monitor111224Здравствуйте",
@@ -50,32 +54,25 @@ local AllTest={
 --		"1514retr220solotester@n1ck.name1812341234220solotester@n1ck.name16Tester",
 --		"1314noop220solotester@n1ck.name1812341234",
 --		"1516delete220solotester@n1ck.name1812341234220solotester@n1ck.name16Tester",
---		"1718chkwords220solotester@n1ck.name1812341234220solotester@n1ck.name16Tester11115Server"
-	}
-    },
-    telznet={
-	default={host="62.152.37.165",port=23,id=id},
-	task={
---	    "1314auth18testsolo19kjshdf8bh",
---	    "1413cmd18testsolo19kjshdf8bh16uptime",
---	    "1618chkwords18testsolo19kjshdf8bh16uptime11113day",
---	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
+		"1718chkwords220solotester@n1ck.name1812341234220solotester@n1ck.name16Tester11115Server"
 	}
     },
     telnet={
+	disable=true,
 	default={host="87.236.184.102",port=23,id=id},
 	task={
-	    "1314auth111111"
+--	    "1314auth111111"
 --	    "1618chkwords1010testsolo19kjshdf8bh",
 --	    "1413cmd18testsolo19kjshdf8bh16uptime",
 --	    "1618chkwords18testsolo19kjshdf8bh16uptime11113MUD",
---	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
+	    "1618chkwords18testsolo19kjshdf8bh16uptime11014dayz"
 	}
     },
     dns={
+	disable=true,
 	default={host=host,port=53,id=id},
 	task={
---	    "1315cname1313210",
+	    "1315cname1313210",
 --	    "1315cname1019znachenie",
 --	    "1313rtr1343219znachenie"
 	}
@@ -83,20 +80,21 @@ local AllTest={
     
 }
 --print(run("module_http.lua",))
-for test,testtable in pairs(AllTest) do
+for test,param in pairs(AllTest) do
     print(string.rep("-",100))
     print("|             самотестирование модуля - "..test)
     print(string.rep("-",100).."\n")
-	    
-    for key,task in pairs(testtable.task) do
+    if not param.disable then
+    for key,task in pairs(param.task) do
         print(string.rep("-",100))
         print("|             конфиг - "..task)
 	print(string.rep("-",100))
-	local argv=clone(testtable.default)
+	local argv=clone(param.default)
 	method , data = unPackData(task)
 	argv.method=method
 	argv.data=data
 	print(run("module_"..test..".lua",argv))
+    end
     end
 
 end
