@@ -4,19 +4,18 @@ struct timeval tv;
 static struct event_base *base;
 struct DNSTask *dnstask;
 
-static inline char * getPTR(char *host) {
-    char arpa[100];
+inline static char * getPTR(char *host) {
+    static char arpa[100];
     u_char *ip;
     in_addr_t in = inet_addr((const char *) host);
     if (in == -1) return host;
-    ip = (char *) & in;
+    ip = (u_char *) & in;
     snprintf(arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
     return arpa;
 }
 
 inline static const unsigned char *CheckPatternAfterParseAnswer(struct DNSTask *dnstask, const unsigned char *aptr, const unsigned char *abuf, int alen) {
 
-    struct Task *task = dnstask->task;
     const unsigned char *p;
     int type, dnsclass, ttl, dlen, status;
     long len;
@@ -271,8 +270,8 @@ void OnEventDNSTask(int fd, short event, void *arg) {
 void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen) {
     struct DNSTask *dnstask = (struct DNSTask *) arg;
     char *query;
-    int id, qr, opcode, aa, tc, rd, ra, rcode, len;
-    u32 ip;
+    int id, qr, opcode, aa, tc, rd, ra, rcode;
+    long len;
     unsigned int qdcount, ancount, nscount, arcount, i;
     const unsigned char *aptr;
     debug("LobjId:%d, Hostname %s", dnstask->task->LObjId, dnstask->task->Record.HostName);
@@ -302,9 +301,6 @@ void DNSTaskResolvCallback(void *arg, int status, int timeouts, unsigned char *a
         aptr = skip_question(aptr, abuf, alen);
         if (aptr == NULL) return;
     }
-    struct hostent *he;
-    struct ares_addrttl addrttls;
-    char *ptr2 = NULL, *ptr = NULL;
 
     dnstask->task->code = STATE_ERROR;
 

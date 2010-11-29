@@ -4,7 +4,7 @@
 #define __TIMESTAMP__ __DATE__" "__TIME__
 #endif
 
-const char version[] = "Tester v0.08/l"PLATFORM" ["LUA_RELEASE",c-ares "ARES_VERSION_STR","_EVENT_PACKAGE" "_EVENT_VERSION"], Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
+const char version[] = "Tester v0.09/l"PLATFORM" ["LUA_RELEASE",c-ares "ARES_VERSION_STR","_EVENT_PACKAGE" "_EVENT_VERSION"], Compiled:"__DATE__" "__TIME__", Source:"__FILE__","__TIMESTAMP__"";
 static struct evbuffer *evBuffer = NULL;
 
 static struct timeval tv;

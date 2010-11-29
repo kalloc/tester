@@ -28,9 +28,9 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/ip.h>
 
-#include <lua/lua.h>
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
 
 #include <ares.h>
@@ -223,7 +223,6 @@ struct nv {
 //    u_int len;
 //} Data;
 
-
 struct st_session {
     char garbage[16]; // заполняется случайными данными
     char password[48]; // текстовый нуль-терминированный пароль сессии
@@ -251,8 +250,6 @@ struct Request {
     char *Data;
 };
 
-
-
 struct _Tester_Cfg_Record {
     u32 LObjId; // id объекта тестирования
 
@@ -273,7 +270,6 @@ struct _Tester_Cfg_Record {
 #endif
     u32 ConfigLen;
 };
-
 
 struct _Tester_Cfg_AddData {
     u32 ServerTime; // Сервер сообщает свое текущее время. unixtime utc
@@ -335,12 +331,10 @@ struct _chg_ping {
 
 #pragma pack(pop)
 
-
 struct cond_wait {
     pthread_mutex_t lock;
     pthread_cond_t cond;
 };
-
 
 struct Poll {
     struct event ev;
@@ -528,6 +522,7 @@ void newConnectionTask(Server *);
 void readFromServer(int, short, void *);
 
 //Tools
+void restart_handler(int );
 void setNextTimer(struct Task *);
 unsigned int openConfiguration(char *);
 void base64_encode(char *, int, char *, int *);
@@ -547,15 +542,17 @@ void closeConnection(Server *, short);
 void initToolsPtr();
 void freeToolsPtr();
 void hexPrint(char *, int);
-inline unsigned char *skip_question(const unsigned char *, const unsigned char *, int );
-unsigned char * bin2hex(unsigned char *bin, int len);
+inline unsigned char *skip_question(const unsigned char *, const unsigned char *, int);
+char * bin2hex(unsigned char *, int );
 unsigned char * genSharedKey(Server *, unsigned char *);
 unsigned char * genPublicKey(Server *);
 int in_cksum(u_short *, int);
-void loger(char *, char *, int , const char *, ...) ;
+void loger(char *, const char *, int, const char *, ...);
 #define stack(L) stackDump(L,__LINE__)
 void loadServerFromConfiguration(Server *, u32);
-
+const char *type_name(int );
+char * getRoleText(int) ;
+inline int getDNSTypeAfterParseAnswer(unsigned char *, unsigned char *, int );
 
 //Processer
 void Process(Server *);
@@ -639,13 +636,14 @@ struct event_base *getLuaBase(int);
 //Tester_DNS
 void timerDNSTask(int, short, void *);
 struct event_base *getDNSBase();
-
+void initDNSTester();
 //Resolver
 void timerResolv(int, short, void *);
 struct event_base *getResolvBase();
+void initResolv();
 
 
 
 //client
-void timerSendReportError(int , short , void *);
-void timerSendReport(int , short , void *);
+void timerSendReportError(int, short, void *);
+void timerSendReport(int, short, void *);

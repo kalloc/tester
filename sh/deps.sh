@@ -12,7 +12,7 @@ find -maxdepth 1 -type f -iname "*.sh" | while read file;do
     ../${file}
     cd ../ 
     echo ' and Clean'
-    rm -rf ./${name}
+#    rm -rf ./${name}
     touch ${name}.installed
 done
 echo 'Done, ready to make tester'

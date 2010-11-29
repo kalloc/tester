@@ -33,7 +33,7 @@ function makelink () {
 
 green 1* скачиваем нужные пакеты
 if [ -f /etc/debian_version ];then
-    apt-get install openssl screen -y gdb python-xmpp  libssl-dev g++ make libxml2-dev
+    apt-get install openssl screen -y gdb python-xmpp  libssl-dev g++ make libxml2-dev libreadline6-dev
 elif [ -f /etc/redhat-release ];then
     rpm -Uvh http://download.fedora.redhat.com/pub/epel/5/i386/epel-release-5-3.noarch.rpm
     yum --noplugins install -y libevent libevent-devel mc zlib openssl-devel  strace lua valgrind nmap  gdb python-xmpp openssl screen
