@@ -642,20 +642,22 @@ static int LuaNetBase64Decode(lua_State * L) {
 
 static int LuaNetIconv(lua_State * L) {
     char *fromStringPtr, *fromString, *fromCharset, *toString, *toStringPtr;
-    iconv_t Iconv;
-    size_t lenIn = 40000, lenOut;
+    iconv_t cd;
+    size_t lenIn = 40000, lenOut ;
     int i;
     fromCharset = (char *) lua_tostring(L, -1);
     fromStringPtr = fromString = (char *) lua_tolstring(L, -2, (size_t*) & lenIn);
-
+    //FILE * fd = fopen("/tmp/buf","w");
+    //fwrite(fromString,lenIn,1,fd);
+    //fclose(fd);
     lenOut = lenIn * 4;
     toStringPtr = toString = getNulledMemory(lenOut);
-    Iconv = iconv_open("UTF-8//IGNORE", fromCharset);
-    i = iconv(Iconv,
+    cd = iconv_open("UTF-8", fromCharset);
+    i = iconv(cd,
             &fromStringPtr, &lenIn,
             &toStringPtr, &lenOut
             );
-    iconv_close(Iconv);
+    iconv_close(cd);
     if (i>-1) {
         lua_pushlstring(L, toString, lenOut);
     } else {
