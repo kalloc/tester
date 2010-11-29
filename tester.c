@@ -12,9 +12,6 @@ int isNewConfig = 0;
 int isNewTimer = 0;
 int isNewResolv = 0;
 
-static int main() {
-
-}
 
 int compareId(const void *left, const void *right) {
     if (((struct Task *) left)->LObjId > ((struct Task *) right)->LObjId) return 1;

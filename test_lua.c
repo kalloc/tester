@@ -4,7 +4,7 @@
 #include <openssl/hmac.h>
 #include <iconv.h>
 
-#define size_t u32
+//#define size_t u_int32_t
 #define LuaNet "api"
 
 unsigned cycles = 0;
@@ -25,7 +25,6 @@ static int LuaNetHash(lua_State * L);
 static int LuaNetHMAC(lua_State * L);
 static int LuaNetIconv(lua_State * L);
 inline int LuaTaskResume(struct Task *, int);
-static int LuaNet_gc(lua_State *L);
 static int LuaNet_tostring(lua_State *L);
 void timerLuaNetRead(int fd, short action, void *arg);
 struct timeval tv;
@@ -163,8 +162,9 @@ void LoadLuaFromDisk() {
                 luaopen_string(lua->state);
                 luaopen_debug(lua->state);
                 luaopen_table(lua->state);
-                lua_pop(lua->state, 9);
+                lua_pop(lua->state, 6);
                 luaL_InitEventNet(lua->state);
+                stack(lua->state);
                 luaL_loadfile(lua->state, filenameWithPath);
                 lua_pcall(lua->state, 0, 0, 0);
                 //lua_getglobal(lua->L, "module");
@@ -182,6 +182,7 @@ void LoadLuaFromDisk() {
                 pthread_create(&lua->threads, NULL, (void*) initLuaThread, lua);
                 //                exit(0);
 
+                stack(lua->state);
 
             }
         }
@@ -205,7 +206,7 @@ int getLuaModuleId(const char* filename) {
 
         lua_State *L = lua_open();
         luaopen_base(L);
-        lua_pop(L, 4);
+        lua_pop(L, 2);
         luaL_loadfile(L, filenameWithPath);
         lua_pcall(L, 0, 0, 0);
         lua_getglobal(L, "module");
@@ -218,7 +219,6 @@ int getLuaModuleId(const char* filename) {
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
-
         lua_close(L);
     }
     return ModType;
@@ -515,7 +515,7 @@ static int LuaNetHMAC(lua_State *L) {
     u_char *cur = NULL;
     unsigned int md_len = 0;
     unsigned int i = 0;
-    size_t msg_len = 0;
+    size_t msg_len;
     if (!lua_isstring(L, 1) or !lua_isstring(L, 2) or !lua_isstring(L, 3)) {
         lua_pushfstring(L, "Need Three Arguments");
         return lua_error(L);
@@ -534,7 +534,7 @@ static int LuaNetHMAC(lua_State *L) {
     // Initialise the hash context
     HMAC_CTX_init(&hmactx);
 
-    cur = (u_char *) lua_tolstring(L, 2, &msg_len);
+    cur = (u_char *) lua_tolstring(L, 2, (size_t *) & msg_len);
     HMAC_Init_ex(&hmactx, cur, msg_len, md, NULL);
 
     cur = (u_char *) lua_tolstring(L, 3, &msg_len);
@@ -641,30 +641,28 @@ static int LuaNetBase64Decode(lua_State * L) {
 }
 
 static int LuaNetIconv(lua_State * L) {
-    char *fromStringPtr, *fromString, *fromCharset, *toString, *toStringPtr;
+    const char *ptr,*fromString, *fromCharset, *toString;
     iconv_t cd;
-    size_t lenIn = 40000, lenOut ;
-    int i;
-    fromCharset = (char *) lua_tostring(L, -1);
-    fromStringPtr = fromString = (char *) lua_tolstring(L, -2, (size_t*) & lenIn);
-    //FILE * fd = fopen("/tmp/buf","w");
-    //fwrite(fromString,lenIn,1,fd);
-    //fclose(fd);
+    size_t lenIn = 40000, lenOut, i;
+
+    fromCharset = lua_tostring(L, -1);
+    fromString = lua_tolstring(L, -2, (size_t*) & lenIn);
     lenOut = lenIn * 4;
-    toStringPtr = toString = getNulledMemory(lenOut);
+    ptr = toString = getNulledMemory(lenOut);
+
+
     cd = iconv_open("UTF-8", fromCharset);
     i = iconv(cd,
-            &fromStringPtr, &lenIn,
-            &toStringPtr, &lenOut
+            &fromString, (size_t*) & lenIn,
+            &toString, (size_t*) & lenOut
             );
     iconv_close(cd);
     if (i>-1) {
-        lua_pushlstring(L, toString, lenOut);
+        lua_pushlstring(L, ptr, lenOut);
     } else {
         lua_pushnil(L);
     }
-
-    free(toString);
+    free(ptr);
     return (1);
 }
 
@@ -822,9 +820,9 @@ static int LuaNetRead(lua_State * L) {
 }
 
 static int LuaNetWrite(lua_State * L) {
-    int len = 40000;
+    size_t len = 40000;
 
-    char *ptr = lua_tolstring(L, 2, (size_t *) & len);
+    const char *ptr = lua_tolstring(L, 2, &len);
 
     struct Task *task = checkLuaNet(L, 1);
     struct stTCPUDPInfo *poll = (struct stTCPUDPInfo *) task->poll;
@@ -1122,6 +1120,7 @@ struct event_base *getLuaBase(int ModType) {
     if (luaModule) {
         return luaModule->base;
     }
+    return NULL;
 }
 
 // gcc -I /usr/include/lua5.1/  curve25519-donna/curve25519-donna.c  -levent  -llua5.1 -lssl yxml.c tools.c test_lua.c -o test_lua && ./test_lua

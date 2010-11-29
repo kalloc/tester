@@ -8,6 +8,12 @@ char IV[16];
 struct event_base *mainBase = 0L;
 static char *Buffer = NULL;
 static u_int BufferLen = 0;
+void OnBufferedWrite(struct bufferevent *bev, void *arg) {
+
+    if (((Server *) arg)->poll->status != STATE_CONNECTED) {
+        openSession((Server *) arg, EV_WRITE);
+    }
+}
 
 void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
 
@@ -20,16 +26,10 @@ void OnBufferedError(struct bufferevent *bev, short what, void *arg) {
     closeConnection((Server *) arg, FALSE);
 }
 
-void OnBufferedWrite(struct bufferevent *bev, void *arg) {
-
-    if (((Server *) arg)->poll->status != STATE_CONNECTED) {
-        openSession((Server *) arg, EV_WRITE);
-    }
-}
 
 void OnBufferedRead(struct bufferevent *bev, void *arg) {
     struct evbuffer *buffer = EVBUFFER_INPUT(bev);
-    u_char *data = EVBUFFER_DATA(buffer);
+//    u_char *data = EVBUFFER_DATA(buffer);
     u_int len = EVBUFFER_LENGTH(buffer);
     
     debug("%d %d",evbuffer_get_contiguous_space(buffer),len);
@@ -112,7 +112,7 @@ void newConnectionTask(Server *pServer) {
     struct sockaddr_in sa;
 
     u32 ip;
-    inet_aton(pServer->host, &ip);
+    inet_aton(pServer->host,(struct in_addr *) &ip);
     sa.sin_addr = *((struct in_addr *) & ip);
     sa.sin_family = AF_INET;
     sa.sin_port = htons(pServer->port);
@@ -229,7 +229,6 @@ void freePtr() {
 int main(int argc, char **argv) {
 
     initMainVars();
-    int skip = 0;
     // возможно лучше проверять не сдох ли fd
     struct sigaction IgnoreYourSignal;
     sigemptyset(&IgnoreYourSignal.sa_mask);

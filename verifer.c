@@ -15,7 +15,6 @@ static void eventcb(struct bufferevent *bev, short what, void *ptr) {
 }
 
 static void onLoadTask(Server *pServer) {
-    struct Poll *poll = pServer->poll;
     struct _Verifer_Cfg_Record *Cfg_Record;
     struct _Tester_Cfg_Record FakeCfg_Record = {0};
     struct Request *pReq, *pReqCmpr;
@@ -103,7 +102,7 @@ static void onLoadTask(Server *pServer) {
         FakeCfg_Record.TimeOut = Cfg_Record->TimeOut;
 
         FakeCfg_Record.NextCheckDt = RemoteToLocalTime(Cfg_Record->NextCheckDt);
-        if (FakeCfg_Record.NextCheckDt < tv.tv_sec) FakeCfg_Record.NextCheckDt = tv.tv_sec+1;
+        if (FakeCfg_Record.NextCheckDt < tv.tv_sec) FakeCfg_Record.NextCheckDt = tv.tv_sec + 1;
 
 
 
@@ -153,7 +152,7 @@ static void callbackRead(struct bufferevent *bev, void *ptr) {
     struct Poll *poll = pServer->poll;
     struct st_session session;
     size_t len;
-    char *Buffer[BUFLEN] = {0};
+    char Buffer[BUFLEN] = {0};
     u_int BufferLen = 0;
     debug("%s -> %s", ConnectedIpString(pServer), getStatusText(poll->status));
 
@@ -183,8 +182,10 @@ static void callbackRead(struct bufferevent *bev, void *ptr) {
             BufferLen = aes_cbc_decrypt(&ctx, pServer->key.shared + 16, EVBUFFER_DATA(In), (unsigned char*) & session, sizeof (struct st_session));
 
             if (memcmp(session.password, pServer->passwordRecv, sizeof (pServer->passwordRecv))) {
-                debug("session.password: %s -> %s", bin2hex(session.password, sizeof (session.password)), session.password);
-                debug("  local.password: %s -> %s", bin2hex(pServer->passwordRecv, sizeof (pServer->passwordRecv)), pServer->passwordRecv);
+                /*
+                                debug("session.password: %s -> %s", bin2hex(session.password, sizeof (session.password)), session.password);
+                                debug("  local.password: %s -> %s", bin2hex(pServer->passwordRecv, sizeof (pServer->passwordRecv)), pServer->passwordRecv);
+                 */
                 BufferLen = snprintf(Buffer, BUFLEN, "%d", SOCK_RC_AUTH_FAILURE);
                 write(bufferevent_getfd(bev), Buffer, BufferLen);
                 closeConnection(pServer, TRUE);
@@ -218,7 +219,6 @@ static void callbackWrite(struct bufferevent *bev, void *ptr) {
 }
 
 void OnAcceptVeriferTask(struct evconnlistener *listener, evutil_socket_t fd, struct sockaddr *a, int slen, void *p) {
-    struct bufferevent *bev;
     struct sockaddr_in *sa;
 
     sa = (struct sockaddr_in *) a;
@@ -255,7 +255,7 @@ void runVeriferTask() {
 
     u32 ip;
     if (config.pVerifer->host) {
-        inet_aton(config.pVerifer->host, &ip);
+        inet_aton(config.pVerifer->host, (struct in_addr *) &ip);
         sa.sin_addr = *((struct in_addr *) & ip);
     } else {
         sa.sin_addr.s_addr = 0;
@@ -269,10 +269,11 @@ void runVeriferTask() {
 
 }
 
-static void initThread() {
+static void *initThread(void *in) {
     base = event_base_new();
     runVeriferTask();
     event_base_dispatch(base);
+    return NULL;
 }
 
 void initVerifer() {

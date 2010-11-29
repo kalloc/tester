@@ -5,11 +5,11 @@ static struct event_base *base;
 struct DNSTask *dnstask;
 
 static inline char * getPTR(char *host) {
-    char arpa[100];
+    static char arpa[100];
     u_char *ip;
     in_addr_t in = inet_addr((const char *) host);
     if (in == -1) return host;
-    ip = (char *) & in;
+    ip = (u_char *) & in;
     snprintf(arpa, 100, "%d.%d.%d.%d.in-addr.arpa", ip[3], ip[2], ip[1], ip[0]);
     return arpa;
 }
@@ -33,12 +33,12 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
     struct DNSTask *dnstask = (struct DNSTask *) arg;
     struct Task *task = (struct Task *) dnstask->task;
     char *query;
-    int id, qr, opcode, aa, tc, rd, ra, rcode;
+    int id, qr, opcode, aa, tc, rd, ra, rcode, i;
     long len;
     u32 ip = 0;
     dnstask->isNeed = 0;
-    unsigned int qdcount, ancount, nscount, arcount, i;
-    const unsigned char *aptr;
+    unsigned int qdcount, ancount, nscount, arcount;
+    unsigned char *aptr;
     debug("1 LobjId:%d, Hostname %s, status : %d", dnstask->task->LObjId, dnstask->task->Record.HostName, status);
     if (status == ARES_EDESTRUCTION) return;
     if (status != ARES_SUCCESS and status != ARES_ENODATA and status != ARES_ENOTFOUND) {
@@ -69,7 +69,7 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
 
     ares_expand_name(aptr, abuf, alen, &query, &len);
     for (i = 0; i < qdcount; i++) {
-        aptr = skip_question(&aptr, abuf, alen);
+        aptr = skip_question(aptr, abuf, alen);
         if (aptr == NULL) return;
     }
     struct hostent * phe[1] = {NULL, NULL}, *he;
@@ -78,7 +78,7 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
 
     switch (dnstask->role) {
         case DNS_RESOLV:
-            ares_parse_a_reply(abuf, alen, &phe, &addrttls, &i);
+            ares_parse_a_reply(abuf, alen, phe, &addrttls, &i);
             he = phe[0];
             if (he) {
                 if (he->h_addr) {
@@ -103,10 +103,10 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
 
             switch (getDNSTypeAfterParseAnswer(aptr, abuf, alen)) {
                 case T_A:
-                    ares_parse_a_reply(abuf, alen, &phe, &addrttls, &i);
+                    ares_parse_a_reply(abuf, alen, phe, &addrttls, &i);
                     break;
                 case T_NS:
-                    ares_parse_ns_reply(abuf, alen, &phe);
+                    ares_parse_ns_reply(abuf, alen, phe);
                     break;
                 default:
                     phe[0] = 0;

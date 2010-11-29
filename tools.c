@@ -594,7 +594,7 @@ void loadServerFromConfiguration(Server *pServer, u32 skip) {
 
 //Loger
 
-void loger(char *codefile, char *codefunction, int level, const char *fmt, ...) {
+void loger(char *codefile, const char *codefunction, int level, const char *fmt, ...) {
 
     static pthread_mutex_t *mutex = NULL;
     if (config.loglevel & (level)) {
@@ -873,7 +873,7 @@ int hex2bin(char *hex, char *bin) {
     return 0;
 }
 
-unsigned char * bin2hex(unsigned char *bin, int len) {
+char * bin2hex(unsigned char *bin, int len) {
     static u_char hex[BUFLEN];
     bzero(&hex, BUFLEN);
     len -= 1;
