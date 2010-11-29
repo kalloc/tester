@@ -66,16 +66,12 @@ void ResolvCallback(void *arg, int status, int timeouts, unsigned char *abuf, in
     nscount = DNS_HEADER_NSCOUNT(abuf);
     arcount = DNS_HEADER_ARCOUNT(abuf);
     aptr = abuf + HFIXEDSZ;
-    printf("%p %p %d\n", aptr, abuf, aptr - abuf);
 
     ares_expand_name(aptr, abuf, alen, &query, &len);
     for (i = 0; i < qdcount; i++) {
-        printf("    %p %p %d\n", aptr, abuf, aptr - abuf);
         aptr = skip_question(&aptr, abuf, alen);
-        printf("    %p %p %d\n", aptr, abuf, aptr - abuf);
         if (aptr == NULL) return;
     }
-    printf("%p %p %d\n", aptr, abuf, aptr - abuf);
     struct hostent * phe[1] = {NULL, NULL}, *he;
     struct ares_addrttl addrttls;
     char *ptr2 = NULL, *ptr = NULL;

@@ -82,7 +82,7 @@
 
 #ifndef DEBUG
 #define DEBUG
-#define HEXPRINT
+//#define HEXPRINT
 #endif
 
 #define MODULE_COUNT        1024

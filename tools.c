@@ -4,7 +4,7 @@
 #include <libxml/xpathInternals.h>
 #include <zlib.h>
 #include <ctype.h>
-#define STDOUT
+//#define STDOUT
 struct timeval tv;
 FILE * fp = 0;
 
@@ -189,20 +189,16 @@ const char *class_name(int dnsclass) {
 inline unsigned char *skip_question(const unsigned char *aptr, const unsigned char *abuf, int alen) {
     char *name;
     int status;
-    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     long len;
     status = ares_expand_name(aptr, abuf, alen, &name, &len);
-    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
 
     if (status != ARES_SUCCESS) return NULL;
     aptr += len;
-    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     if (aptr + QFIXEDSZ > abuf + alen) {
         ares_free_string(name);
         return NULL;
     }
     aptr += QFIXEDSZ;
-    printf("skip_question(%p, %p,%d)\n", aptr, abuf, alen);
     ares_free_string(name);
     return aptr;
 }
