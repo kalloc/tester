@@ -30,6 +30,9 @@ void addICMPReport(struct Task * task) {
     chg->IP = task->Record.IP;
     chg->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
     chg->CheckRes = task->code == STATE_DONE ? 0 : -1;
+    #ifdef CFG_3
+    chg->CheckStatus=(chg->CheckRes)?0:1;
+    #endif
     gettimeofday(&tv, NULL);
     chg->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, poll->CheckDt) : 0xffff;
     chg->ProblemIP = poll->ProblemIP;
@@ -116,6 +119,10 @@ void addTCPReport(struct Task * task) {
     chg->IP = task->Record.IP;
     chg->CheckDt = LocalToRemoteTime(poll->CheckDt.tv_sec);
     chg->CheckRes = task->code == STATE_DONE ? 0 : -1;
+    #ifdef CFG_3
+	chg->CheckStatus=(chg->CheckRes)?0:1;
+    #endif
+
     if (task->isVerifyTask) {
         chg->Flags |= TESTER_FLAG_CHECK_TASK;
     }
@@ -192,7 +199,7 @@ void addDNSReport(struct Task * task) {
     pthread_mutex_lock(mutex);
     pthread_mutex_lock(send_mutex);
 
-    struct _chg_tcp *tcp;
+    struct _chg_tcp *chg;
     struct DNSTask * dnstask = (struct DNSTask *) (task->poll);
     incStat(task->Record.ModType, task->code);
 
@@ -200,30 +207,34 @@ void addDNSReport(struct Task * task) {
 
     ReportEntryPtr->ModType = task->Record.ModType;
     ReportEntryPtr->Len = sizeof (struct _chg_tcp);
-    tcp = getNulledMemory(ReportEntryPtr->Len);
-    tcp->LObjId = task->LObjId;
-    tcp->IP = task->Record.IP;
+    chg = getNulledMemory(ReportEntryPtr->Len);
+    chg->LObjId = task->LObjId;
+    chg->IP = task->Record.IP;
     if (task->isVerifyTask) {
-        tcp->Flags |= TESTER_FLAG_CHECK_TASK;
+        chg->Flags |= TESTER_FLAG_CHECK_TASK;
     }
 
-    tcp->CheckDt = LocalToRemoteTime(dnstask->CheckDt.tv_sec);
-    tcp->CheckRes = task->code == STATE_DONE ? 0 : -1;
+    chg->CheckDt = LocalToRemoteTime(dnstask->CheckDt.tv_sec);
+    chg->CheckRes = task->code == STATE_DONE ? 0 : -1;
+    #ifdef CFG_3
+	chg->CheckStatus=(chg->CheckRes)?0:1;
+    #endif
+
     gettimeofday(&tv, NULL);
-    tcp->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, dnstask->CheckDt) : 0xffff;
-    tcp->Port = task->Record.Port;
+    chg->DelayMS = task->code == STATE_DONE ? timeDiffMS(tv, dnstask->CheckDt) : 0xffff;
+    chg->Port = task->Record.Port;
 
     debug("%d -> Module %s for %s [%s:%d] [ms: %d] [time test:%d] Flags is %d Result %s, to %s",
             task->Record.LObjId,
             getModuleText(task->Record.ModType),
             task->Record.HostName, ipString(task->Record.IP), task->Record.Port,
-            tcp->DelayMS,
+            chg->DelayMS,
             dnstask->CheckDt.tv_sec,
-            tcp->Flags,
+            chg->Flags,
             getStatusText(task->code),
             task->pServer->host);
 
-    ReportEntryPtr->Data = (char *) tcp;
+    ReportEntryPtr->Data = (char *) chg;
 
     if (pServerSC) {
         ReportEntryPtrForDC = getNulledMemory(sizeof (struct ReportListEntry));
@@ -236,7 +247,7 @@ void addDNSReport(struct Task * task) {
         } else {
             pServerSC->report.counterReportError++;
         }
-        if (tcp->CheckRes > -1) {
+        if (chg->CheckRes > -1) {
             LIST_INSERT_HEAD(&pServerSC->report.ReportHead, ReportEntryPtrForDC, entries);
 
         } else {
@@ -250,7 +261,7 @@ void addDNSReport(struct Task * task) {
     } else {
         task->pServer->report.counterReportError++;
     }
-    if (tcp->CheckRes > -1) {
+    if (chg->CheckRes > -1) {
         LIST_INSERT_HEAD(&task->pServer->report.ReportHead, ReportEntryPtr, entries);
     } else {
         LIST_INSERT_HEAD(&task->pServer->report.ReportErrorHead, ReportEntryPtr, entries);
@@ -277,6 +288,10 @@ void inline debugPrintReport(struct ReportListEntry * ReportEntry) {
         debug("\tid объекта тестирования = %d", report->LObjId);
         debug("\tдата проверки = %x", report->CheckDt);
         debug("\tип объекта тестирования = %s", ipString(report->IP));
+        #ifdef CFG_3
+    	    debug("\tстатус = %d", report->CheckStatus);
+	#endif
+
         debug("\tрезультат = %d", report->CheckRes);
         debug("\tвремя ответа в мс  = %u", report->DelayMS);
         debug("\tИП сообщивший о недоступности/проблемах или 0 = %x", report->ProblemIP);
@@ -291,6 +306,10 @@ void inline debugPrintReport(struct ReportListEntry * ReportEntry) {
         debug("\tid объекта тестирования = %d", report->LObjId);
         debug("\tдата проверки = %x", report->CheckDt);
         debug("\tип объекта тестирования = %s", ipString(report->IP));
+        #ifdef CFG_3
+    	    debug("\tстатус = %d", report->CheckStatus);
+	#endif
+
         debug("\tрезультат = %d", report->CheckRes);
         debug("\tвремя ответа в мс  = %d", report->DelayMS);
         debug("\tИП сообщивший о недоступности/проблемах или 0 = %x", report->ProblemIP);

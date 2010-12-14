@@ -75,6 +75,7 @@
 
 //активация изменений
 #define CFG_2
+#define CFG_3
 
 
 //отправлять одни пакетом
@@ -264,7 +265,11 @@ struct _Tester_Cfg_Record {
     u32 FoldedNext; // LObjId предыдущего хоста в folded-цепочке или 0
     u32 FoldedPrev; // LObjId следующего хоста в folded-цепочке или 0
     u32 TimeOut;
-
+#ifdef CFG_3
+    s64              LimWarn;
+    s64              LimAlrt;
+    u8               LimDir;
+#endif
 #ifdef CFG_2
     u8 CFGVer;
 #endif
@@ -291,6 +296,11 @@ struct _Verifer_Cfg_Record {
     u32 NextCheckDt; // дата ближайшей проверки. unixtime utc
     char HostName[TESTER_SQL_HOST_NAME_LEN]; // имя хоста
     u32 TimeOut;
+#ifdef CFG_3
+    s64              LimWarn;
+    s64              LimAlrt;
+    u8               LimDir;
+#endif
 
 #ifdef CFG_2
     u8 CFGVer;
@@ -307,6 +317,9 @@ struct _chg_tcp {
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
     u16 ProblemICMP_Code; // icmp.code проблемы от хоста ProblemIP
+#ifdef CFG_3
+    u8               CheckStatus;
+#endif
     u8 Flags;
 #ifdef CFG_2
     u8 CFGVer;
@@ -323,6 +336,9 @@ struct _chg_ping {
     u32 ProblemIP; // ИП сообщивший о недоступности/проблемах или 0
     u16 ProblemICMP_Type; // icmp.type проблемы от хоста ProblemIP
     u16 ProblemICMP_Code; // icmp.code проблемы от хоста ProblemIP
+#ifdef CFG_3
+    u8               CheckStatus;
+#endif
     u8 Flags;
 #ifdef CFG_2
     u8 CFGVer;
