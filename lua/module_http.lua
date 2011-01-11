@@ -18,11 +18,7 @@ function main(argv)
     local r
 
     local get = function (path,arg) 
-	local Request=[[GET %s%s%s%s HTTP/1.1
-Host: %s
-User-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)
-
-]]
+	local Request="GET %s%s%s%s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)\r\n\r\n"
 	net:write(Request:format(
 	    path:sub(1,1) == '/' and '' or '/',
 	    path,
@@ -34,25 +30,14 @@ User-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)
     end
 
     local authget = function (path,login,password) 
-	local Request=[[GET %s%s HTTP/1.1
-Host: %s
-User-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)
-Authorization: Basic %s
-
-]]
+	local Request="GET %s%s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)\r\nAuthorization: Basic %s\r\nConnection: close\r\n\r\n"
 	net:write(Request:format(path:sub(1,1) == '/' and '' or '/',path,argv.host,(login..":"..password):base64encode()))
 	return net:read() or ""
     end
 
     local post = function (path,arg) 
 
-	local Request=[[POST %s%s HTTP/1.1
-Host: %s
-User-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)
-Content-Length: %d
-Content-Type: application/x-www-form-urlencoded
-
-%s]]
+	local Request="POST %s%s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Module_HTTP.Lua (SoloMonitoring.Ru)\r\nContent-Length: %d\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n%s"
 	net:write(Request:format(path:sub(1,1) == '/' and '' or '/',path,argv.host,#argv.data[2],argv.data[2]))
 	r=net:read() or ""
 	return r
