@@ -1,0 +1,62 @@
+   1. #include <stdio.h>  
+   2. #include <stdlib.h>  
+   3. #include <string.h>  
+   4. #include <lua.h>  
+   5. #include <lauxlib.h>  
+   6. #include <lualib.h>  
+   7. #include <event.h>  
+   8.   
+   9.   
+  10. // gcc -I/usr/include/lua5.1 lua5.c -o lua5 -l lua5.1 && ./lua5  
+  11.   
+  12. lua_State *L,*thread,*thread2;  
+  13.     
+  14. int printtask(lua_State *L) {  
+  15.     lua_pushlightuserdata(L, "_task");  
+  16.     lua_gettable(L, LUA_REGISTRYINDEX);  
+  17.     char *ptr = lua_touserdata(L, -1);  
+  18.     printf("печатаем  %s\n",ptr);  
+  19. }  
+  20.                 
+  21.     
+  22. int main(int argc, char *argv[])      
+  23. {     
+  24.     int i;  
+  25.     L = lua_open();     
+  26.     int table,table2;  
+  27.     luaopen_base(L);             /* opens the basic library */  
+  28.     luaopen_table(L);            /* opens the table library */  
+  29.     luaopen_string(L);           /* opens the string lib. */  
+  30.     luaopen_math(L);             /* opens the math lib. */  
+  31.     lua_pop(L,5);  
+  32.     luaL_loadstring(L,"function main() local i=1+1 task() end");  
+  33.     lua_pushcfunction(L, printtask);      
+  34.     lua_setglobal(L, "task");   
+  35.     lua_pcall(L,0,0,0);  
+  36.     char task[]="task 1";  
+  37.     char task2[]="task 2";  
+  38.     for(i=0;i<10;i++) {  
+  39.   
+  40.     thread=lua_newthread(L);  
+  41.         table = luaL_ref (L,LUA_REGISTRYINDEX);  
+  42.         lua_pushlightuserdata(thread, "_task");  
+  43.         lua_pushlightuserdata(thread, task);  
+  44.         lua_settable(thread, LUA_REGISTRYINDEX);  
+  45.   
+  46.     thread2=lua_newthread(L);  
+  47.         table2 = luaL_ref (L,LUA_REGISTRYINDEX);  
+  48.         lua_pushlightuserdata(thread2, "_task");  
+  49.         lua_pushlightuserdata(thread2, task2);  
+  50.         lua_settable(thread2, LUA_REGISTRYINDEX);  
+  51.     lua_getglobal(thread2, "main");  
+  52.     lua_getglobal(thread, "main");  
+  53.     lua_resume(thread, 0);  
+  54.     lua_resume(thread2, 0);  
+  55.         luaL_unref(L, LUA_REGISTRYINDEX, table );  
+  56.         luaL_unref(L, LUA_REGISTRYINDEX, table2 );  
+  57.     }  
+  58.     lua_close(L);  
+  59.   
+  60.   
+  61.     return 0;     
+  62. }   

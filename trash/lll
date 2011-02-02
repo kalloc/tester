@@ -1,0 +1,211 @@
+==9129== Memcheck, a memory error detector.
+==9129== Copyright (C) 2002-2008, and GNU GPL'd, by Julian Seward et al.
+==9129== Using LibVEX rev 1884, a library for dynamic binary translation.
+==9129== Copyright (C) 2004-2008, and GNU GPL'd, by OpenWorks LLP.
+==9129== Using valgrind-3.4.1-Debian, a dynamic binary instrumentation framework.
+==9129== Copyright (C) 2000-2008, and GNU GPL'd, by Julian Seward et al.
+==9129== 
+==9129== My PID = 9129, parent PID = 14162.  Prog and args are:
+==9129==    dist/Debug/GNU-Linux-x86/tester
+==9129==    config_local.xml
+==9129== 
+--9129-- 
+--9129-- Command line
+--9129--    dist/Debug/GNU-Linux-x86/tester
+--9129--    config_local.xml
+--9129-- Startup, with flags:
+--9129--    --suppressions=/usr/lib/valgrind/debian-libc6-dbg.supp
+--9129--    -v
+--9129--    --track-origins=yes
+--9129--    --log-file=lll
+--9129--    --leak-check=full
+--9129--    --show-reachable=yes
+--9129-- Contents of /proc/version:
+--9129--   Linux version 2.6.30-1-686-bigmem (Debian 2.6.30-5) (maks@debian.org) (gcc version 4.3.3 (Debian 4.3.3-15) ) #1 SMP Mon Aug 3 17:32:39 UTC 2009
+--9129-- Arch and hwcaps: X86, x86-sse1-sse2
+--9129-- Page sizes: currently 4096, max supported 4096
+--9129-- Valgrind library directory: /usr/lib/valgrind
+--9129-- Reading syms from /lib/ld-2.9.so (0x4000000)
+--9129-- Reading debug info from /lib/ld-2.9.so ..
+--9129-- .. CRC mismatch (computed 05caff6e wanted 95479fcf)
+--9129-- Reading debug info from /usr/lib/debug/lib/ld-2.9.so ..
+--9129-- Reading syms from /home/nick/NetBeansProjects/tester/dist/Debug/GNU-Linux-x86/tester (0x8048000)
+--9129-- Reading syms from /usr/lib/valgrind/x86-linux/memcheck (0x38000000)
+--9129--    object doesn't have a dynamic symbol table
+--9129-- Reading suppressions file: /usr/lib/valgrind/debian-libc6-dbg.supp
+--9129-- Reading suppressions file: /usr/lib/valgrind/default.supp
+--9129-- REDIR: 0x4016600 (index) redirected to 0x3803cb83 (vgPlain_x86_linux_REDIR_FOR_index)
+--9129-- Reading syms from /usr/lib/valgrind/x86-linux/vgpreload_core.so (0x4020000)
+--9129-- Reading syms from /usr/lib/valgrind/x86-linux/vgpreload_memcheck.so (0x4022000)
+==9129== WARNING: new redirection conflicts with existing -- ignoring it
+--9129--     new: 0x04016600 (index               ) R-> 0x04026490 index
+--9129-- REDIR: 0x40167f0 (strlen) redirected to 0x4026740 (strlen)
+--9129-- Reading syms from /usr/lib/libevent-1.4.so.2.1.3 (0x4060000)
+--9129--    object doesn't have a symbol table
+--9129-- Reading syms from /usr/lib/libz.so.1.2.3.3 (0x4077000)
+--9129-- Reading debug info from /usr/lib/libz.so.1.2.3.3 ..
+--9129-- .. CRC mismatch (computed 25392c6b wanted 56347bc3)
+--9129--    object doesn't have a symbol table
+--9129-- Reading syms from /lib/i686/cmov/libc-2.9.so (0x408d000)
+--9129-- Reading debug info from /lib/i686/cmov/libc-2.9.so ..
+--9129-- .. CRC mismatch (computed 9d9c03ea wanted 6ce54d51)
+--9129-- Reading debug info from /usr/lib/debug/lib/i686/cmov/libc-2.9.so ..
+--9129-- Reading syms from /lib/i686/cmov/libnsl-2.9.so (0x41ec000)
+--9129-- Reading debug info from /lib/i686/cmov/libnsl-2.9.so ..
+--9129-- .. CRC mismatch (computed 43f2211a wanted 063af7f9)
+--9129-- Reading debug info from /usr/lib/debug/lib/i686/cmov/libnsl-2.9.so ..
+--9129-- Reading syms from /lib/i686/cmov/librt-2.9.so (0x4205000)
+--9129-- Reading debug info from /lib/i686/cmov/librt-2.9.so ..
+--9129-- .. CRC mismatch (computed 551d0025 wanted 31ec1775)
+--9129-- Reading debug info from /usr/lib/debug/lib/i686/cmov/librt-2.9.so ..
+--9129-- Reading syms from /lib/i686/cmov/libresolv-2.9.so (0x420e000)
+--9129-- Reading debug info from /lib/i686/cmov/libresolv-2.9.so ..
+--9129-- .. CRC mismatch (computed c0784460 wanted b8222314)
+--9129-- Reading debug info from /usr/lib/debug/lib/i686/cmov/libresolv-2.9.so ..
+--9129-- Reading syms from /lib/i686/cmov/libpthread-2.9.so (0x4224000)
+--9129-- Reading debug info from /lib/i686/cmov/libpthread-2.9.so ..
+--9129-- .. CRC mismatch (computed 179a4a42 wanted 508bbddd)
+--9129-- Reading debug info from /usr/lib/debug/lib/i686/cmov/libpthread-2.9.so ..
+--9129-- REDIR: 0x4103200 (index) redirected to 0x4026460 (index)
+--9129-- REDIR: 0x4105120 (memchr) redirected to 0x4026b40 (memchr)
+--9129-- REDIR: 0x4103d60 (rindex) redirected to 0x4026370 (rindex)
+--9129-- REDIR: 0x40ffc40 (malloc) redirected to 0x4025f60 (malloc)
+--9129-- REDIR: 0x4105620 (memset) redirected to 0x4027630 (memset)
+--9129-- REDIR: 0x4108670 (strchrnul) redirected to 0x4027700 (strchrnul)
+--9129-- REDIR: 0x4105b30 (memcpy) redirected to 0x4026b90 (memcpy)
+--9129-- REDIR: 0x40fd800 (free) redirected to 0x4024d80 (free)
+--9129-- REDIR: 0x4103370 (strcmp) redirected to 0x4026a20 (strcmp)
+--9129-- REDIR: 0x41038e0 (strlen) redirected to 0x4026720 (strlen)
+--9129-- REDIR: 0x4105680 (mempcpy) redirected to 0x4027760 (mempcpy)
+--9129-- REDIR: 0x40ff910 (calloc) redirected to 0x4024010 (calloc)
+--9129-- REDIR: 0x4103b00 (strncmp) redirected to 0x4026990 (strncmp)
+--9129-- REDIR: 0x41033e0 (strcpy) redirected to 0x4026780 (strcpy)
+--9129-- REDIR: 0x41000f0 (realloc) redirected to 0x4026070 (realloc)
+==9129== 
+==9129== Process terminating with default action of signal 2 (SIGINT)
+==9129==    at 0x412B650: __nanosleep_nocancel (in /lib/i686/cmov/libc-2.9.so)
+==9129==    by 0x804E86F: netInit (tester.c:242)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 23 from 1)
+--9129-- 
+--9129-- supp:     23 Debian libc6 (2.9.x) stripped dynamic linker
+==9129== malloc/free: in use at exit: 23,494 bytes in 9 blocks.
+==9129== malloc/free: 53 allocs, 44 frees, 70,198 bytes allocated.
+==9129== 
+==9129== searching for pointers to 9 not-freed blocks.
+==9129== checked 140,132 bytes.
+==9129== 
+==9129== 4 bytes in 1 blocks are still reachable in loss record 1 of 9
+==9129==    at 0x40240D2: calloc (vg_replace_malloc.c:397)
+==9129==    by 0x4064B40: event_base_priority_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064DB3: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== 
+==9129== 8 bytes in 1 blocks are still reachable in loss record 2 of 9
+==9129==    at 0x402601E: malloc (vg_replace_malloc.c:207)
+==9129==    by 0x4064B8D: event_base_priority_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064DB3: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== 
+==9129== 10 bytes in 1 blocks are still reachable in loss record 3 of 9
+==9129==    at 0x402601E: malloc (vg_replace_malloc.c:207)
+==9129==    by 0x410364F: strdup (strdup.c:43)
+==9129==    by 0x804E658: loadConfig (tester.c:194)
+==9129==    by 0x804EA14: main (tester.c:283)
+==9129== 
+==9129== 
+==9129== 20 bytes in 1 blocks are still reachable in loss record 4 of 9
+==9129==    at 0x40240D2: calloc (vg_replace_malloc.c:397)
+==9129==    by 0x40730CB: (within /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064D6E: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== 
+==9129== 944 bytes in 1 blocks are still reachable in loss record 5 of 9
+==9129==    at 0x40240D2: calloc (vg_replace_malloc.c:397)
+==9129==    by 0x4064CB7: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== 
+==9129== 1,024 bytes in 1 blocks are still reachable in loss record 6 of 9
+==9129==    at 0x402601E: malloc (vg_replace_malloc.c:207)
+==9129==    by 0x80520C3: initToolsVar (tools.c:46)
+==9129==    by 0x804E980: initSomeVar (tester.c:264)
+==9129==    by 0x804E9C9: main (tester.c:276)
+==9129== 
+==9129== 
+==9129== 1,024 bytes in 1 blocks are still reachable in loss record 7 of 9
+==9129==    at 0x402601E: malloc (vg_replace_malloc.c:207)
+==9129==    by 0x804E959: initSomeVar (tester.c:262)
+==9129==    by 0x804E9C9: main (tester.c:276)
+==9129== 
+==9129== 
+==9129== 8,184 bytes in 1 blocks are still reachable in loss record 8 of 9
+==9129==    at 0x40240D2: calloc (vg_replace_malloc.c:397)
+==9129==    by 0x4073107: (within /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064D6E: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== 
+==9129== 12,276 bytes in 1 blocks are still reachable in loss record 9 of 9
+==9129==    at 0x402601E: malloc (vg_replace_malloc.c:207)
+==9129==    by 0x40730E9: (within /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064D6E: event_base_new (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x4064E26: event_init (in /usr/lib/libevent-1.4.so.2.1.3)
+==9129==    by 0x804E7B6: netInit (tester.c:227)
+==9129==    by 0x804EA64: main (tester.c:295)
+==9129== 
+==9129== LEAK SUMMARY:
+==9129==    definitely lost: 0 bytes in 0 blocks.
+==9129==      possibly lost: 0 bytes in 0 blocks.
+==9129==    still reachable: 23,494 bytes in 9 blocks.
+==9129==         suppressed: 0 bytes in 0 blocks.
+--9129--  memcheck: sanity checks: 1 cheap, 2 expensive
+--9129--  memcheck: auxmaps: 0 auxmap entries (0k, 0M) in use
+--9129--  memcheck: auxmaps_L1: 0 searches, 0 cmps, ratio 0:10
+--9129--  memcheck: auxmaps_L2: 0 searches, 0 nodes
+--9129--  memcheck: SMs: n_issued      = 14 (224k, 0M)
+--9129--  memcheck: SMs: n_deissued    = 0 (0k, 0M)
+--9129--  memcheck: SMs: max_noaccess  = 65535 (1048560k, 1023M)
+--9129--  memcheck: SMs: max_undefined = 0 (0k, 0M)
+--9129--  memcheck: SMs: max_defined   = 28 (448k, 0M)
+--9129--  memcheck: SMs: max_non_DSM   = 14 (224k, 0M)
+--9129--  memcheck: max sec V bit nodes:    0 (0k, 0M)
+--9129--  memcheck: set_sec_vbits8 calls: 0 (new: 0, updates: 0)
+--9129--  memcheck: max shadow mem size:   528k, 0M
+--9129--  ocacheL1:    4,314,744 refs         78,672 misses (0 lossage)
+--9129--  ocacheL1:    4,220,605 at 0         15,467 at 1
+--9129--  ocacheL1:            0 at 2+        78,793 move-fwds
+--9129--  ocacheL1:   92,274,688 sizeB    67,108,864 useful
+--9129--  ocacheL2:       78,672 refs         78,672 misses
+--9129--  ocacheL2:            0 max nodes         0 curr nodes
+--9129--  niacache:            0 refs              0 misses
+--9129-- translate:            fast SP updates identified: 3,613 ( 87.9%)
+--9129-- translate:   generic_known SP updates identified: 265 (  6.4%)
+--9129-- translate: generic_unknown SP updates identified: 231 (  5.6%)
+--9129--     tt/tc: 8,022 tt lookups requiring 8,247 probes
+--9129--     tt/tc: 8,022 fast-cache updates, 3 flushes
+--9129--  transtab: new        3,727 (125,179 -> 3,129,234; ratio 249:10) [0 scs]
+--9129--  transtab: dumped     0 (0 -> ??)
+--9129--  transtab: discarded  8 (214 -> ??)
+--9129-- scheduler: 180,492 jumps (bb entries).
+--9129-- scheduler: 1/4,701 major/minor sched events.
+--9129--    sanity: 2 cheap, 2 expensive checks.
+--9129--    exectx: 3,079 lists, 2,182 contexts (avg 0 per list)
+--9129--    exectx: 2,756 searches, 1,987 full compares (720 per 1000)
+--9129--    exectx: 36 cmp2, 50 cmp4, 0 cmpAll
+--9129--  errormgr: 15 supplist searches, 1,500 comparisons during search
+--9129--  errormgr: 23 errlist searches, 50 comparisons during search
