@@ -76,7 +76,7 @@
 //активация изменений
 #define CFG_2
 #define CFG_3
-
+#define CFG_4
 
 //отправлять одни пакетом
 #define ONEPACKET
@@ -273,6 +273,9 @@ struct _Tester_Cfg_Record {
 #ifdef CFG_2
     u8 CFGVer;
 #endif
+#ifdef CFG_4
+    u8 Flags;
+#endif
     u32 ConfigLen;
 };
 
@@ -304,6 +307,9 @@ struct _Verifer_Cfg_Record {
 
 #ifdef CFG_2
     u8 CFGVer;
+#endif
+#ifdef CFG_4
+    u8 Flags;
 #endif
     u32 ConfigLen;
 };
