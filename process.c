@@ -137,6 +137,11 @@ int onLoadTask(Server *pServer) {
     }
 
     Cfg_AddData = (struct _Tester_Cfg_AddData *) & pReq->Data;
+#ifdef CFG_3
+    if (Cfg_AddData->ProtocolVersion != PROTOCOL_VERSION) {
+	return TRUE;
+    }
+#endif
     if (Cfg_AddData->CfgRereadPeriod != pServer->periodRetrieve) {
         debug("set new period reread config from %d to %d", pServer->periodRetrieve, Cfg_AddData->CfgRereadPeriod);
         pServer->periodRetrieve = Cfg_AddData->CfgRereadPeriod;

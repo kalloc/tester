@@ -113,6 +113,8 @@
 #define s32                 int32_t
 #define s64                 int64_t
 
+#define PROTOCOL_VERSION     0x0001
+
 #ifdef __x86_64__
 #define PLATFORM            "64"
 #else
@@ -277,6 +279,9 @@ struct _Tester_Cfg_Record {
 };
 
 struct _Tester_Cfg_AddData {
+#ifdef CFG_3
+    u16              ProtocolVersion; // SQLReceiverTester protocol compatibility
+#endif 
     u32 ServerTime; // Сервер сообщает свое текущее время. unixtime utc
 #ifdef CFG_2
     u32 CfgRereadPeriod; // Tester reread config period
