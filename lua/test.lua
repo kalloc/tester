@@ -7,14 +7,14 @@ local id="66666666"
 
 local AllTest={
     http={
-	disable=true,
-	default={host="mycurriencies.net",port=80,id=id},
+	disable=false,
+	default={host="www.banki.ru",port=80,id=id},
 	task={
 --	    "1518chkwords11/111212Registration210ISO-8859-1",
 --	    "1314post18test.php16test=1",
 --	    "1317chksize18test.php147000",
 --	    "1313get11/10",
---	    "1518chkwords211/index.html111216Обучение212WINDOWS-1251",
+	    "1518chkwords11/111214ипотека212WINDOWS-1251",
 --	    "1518chkwords211/index.html111216Обучение10",
 --	    "1414auth18test.php15admin18password"
 	    
@@ -37,7 +37,7 @@ local AllTest={
     },
 
     smtp={
-	disable=false,
+	disable=true,
 	default={host="smtp.yandex.ru",port=25,id=id},
 	task={
 --		"1314auth220solotester@n1ck.name1812341234",

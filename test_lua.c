@@ -643,7 +643,7 @@ static int LuaNetBase64Decode(lua_State * L) {
 static int LuaNetIconv(lua_State * L) {
     const char *ptr,*fromString, *fromCharset, *toString;
     iconv_t cd;
-    size_t lenIn = 40000, lenOut, i;
+    size_t lenIn = 500000, lenOut, i;
 
     fromCharset = lua_tostring(L, -1);
     fromString = lua_tolstring(L, -2, (size_t*) & lenIn);
@@ -657,7 +657,7 @@ static int LuaNetIconv(lua_State * L) {
             &toString, (size_t*) & lenOut
             );
     iconv_close(cd);
-    if (i>-1) {
+    if (i != (size_t)(-1)) {
         lua_pushlstring(L, ptr, lenOut);
     } else {
         lua_pushnil(L);
